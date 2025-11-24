@@ -40,3 +40,8 @@
 .read-the-docs {
   color: #888;
 }
+.leaflet-tooltip-custom {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}

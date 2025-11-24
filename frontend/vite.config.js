@@ -8,7 +8,7 @@ const __dirname = dirname(__filename)
 export default defineConfig({
   // ✅ ใช้ base แทน basename และต้องตรงกับ Router basename
   // เปลี่ยน base ให้รวม /datahub/ เข้าไปด้วย
-  base: '/dash_data/public', // <--- เพิ่ม /datahub/ เข้าไป และอย่าลืมใส่ / ปิดท้าย!
+  base: '/datahub/dash_data/public', // <--- เพิ่ม /datahub/ เข้าไป และอย่าลืมใส่ / ปิดท้าย!
   build: {
     outDir: resolve(__dirname, '../public'),
     emptyOutDir: true,

@@ -3,8 +3,32 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from "react";
 import React from "react";
 import L from "leaflet";
-import axios from "axios";
-// FitBounds: ซูมให้ครอบจังหวัดพะเยา
+
+// ----------------------------------
+//  Mock Data
+// ----------------------------------
+const mockData = {
+  "เมืองพะเยา": 60,
+  "เชียงคำ": 80,
+  "จุน": 60,
+  "เชียงม่วน": 80,
+  "ภูกามยาว": 80,
+  "ภูซาง": 80,
+  "ปง": 45,
+  "แม่ใจ": 45,
+  "ดอกคำใต้": 45
+};
+
+function getColor(ampName) {
+  const val = mockData[ampName] ?? 100;
+  if (val > 75) return "#22c55e"; // เขียว
+  if (val >= 50) return "#eab308"; // เหลือง
+  return "#ef4444"; // แดง
+}
+
+// ----------------------------------
+// Fit Bounds
+// ----------------------------------
 function FitBounds({ geoData }) {
   const map = useMap();
   useEffect(() => {
@@ -16,75 +40,82 @@ function FitBounds({ geoData }) {
   return null;
 }
 
-// Legend: แสดงคำอธิบายสี
-function Legend() {
+// ----------------------------------
+// Custom Tooltip
+// ----------------------------------
+function customTooltipContent(amp, val, color) {
+  return `
+    <div style="
+      background: white;
+      padding: 8px 12px;
+      border-radius: 14px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+      border-left: 6px solid ${color};
+      font-size: 14px;
+      transition: all .25s ease;
+    ">
+      <div style="font-weight: 600; margin-bottom: 4px;">${amp}</div>
+      <div style="opacity: 0.8;">ค่าประเมิน: <strong>${val}%</strong></div>
+    </div>
+  `;
+}
+
+// ----------------------------------
+// Legend (Tailwind + Beautiful)
+// ----------------------------------
+function TailwindLegend() {
   const map = useMap();
+
   useEffect(() => {
     const legend = L.control({ position: "bottomright" });
+
     legend.onAdd = () => {
-      const div = L.DomUtil.create("div", "legend bg-white p-3 rounded-lg shadow-lg text-sm");
+      const div = L.DomUtil.create("div");
       div.innerHTML = `
-        <div class="font-bold mb-1">คำอธิบาย</div>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="w-4 h-4 inline-block rounded bg-red-500"></span> พื้นที่เสี่ยงฝนตกหนักมาก
+      <div class="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-4 border border-gray-200 text-sm space-y-3 animate-fadeIn">
+
+        <div class="text-xs text-gray-500 leading-snug">
+          <strong class="text-gray-700">คำอธิบาย:</strong><br/>
+          โรงพยาบาลในจังหวัดเปิดนัดหมายออนไลน์พร้อมกัน
+          <span class="font-semibold text-gray-700">4 คลินิกขึ้นไป</span>
         </div>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="w-4 h-4 inline-block rounded bg-yellow-400"></span> พื้นที่เสี่ยงฝนตกหนัก
+
+        <div class="font-semibold text-gray-700 pt-1 border-t border-gray-200">
+          ระดับผลลัพธ์
         </div>
+
         <div class="flex items-center gap-2">
-          <span class="w-4 h-4 inline-block rounded bg-green-500"></span> ปลอดภัย
+          <span class="w-4 h-4 rounded bg-[#22c55e]"></span>
+          > 75% (เปิดบริการแล้ว 4 คลินิก)
         </div>
+
+        <div class="flex items-center gap-2">
+          <span class="w-4 h-4 rounded bg-[#eab308]"></span>
+          50–75% (เปิดบริการแล้วแต่ไม่ครบ 4 คลินิก)
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="w-4 h-4 rounded bg-[#ef4444]"></span>
+          < 50% (ยังไม่ได้ดำเนินการ)
+        </div>
+      </div>
       `;
       return div;
     };
+
     legend.addTo(map);
-    return () => legend.remove();
+
+    return () => map.removeControl(legend);
   }, [map]);
+
   return null;
 }
 
+// ----------------------------------
+// Main
+// ----------------------------------
 export default function PhayaoMap() {
-  const amphoes = ["ดอกคำใต้","จุน","เชียงคำ","ปง","ภูซาง","แม่ใจ","ภูกามยาว","เชียงม่วน"];
   const [geoData, setGeoData] = useState(null);
-  const [nowTime, setNowTime] = useState(new Date());
-  // อัพเดทเวลา real-time ทุก 1 นาที
-  useEffect(() => {
-    const interval = setInterval(() => setNowTime(new Date()), 60000);
-    return () => clearInterval(interval);
-  }, []);
-
- const formatDateTime = (date) => {
-  return date.toLocaleDateString("th-TH", {
-    day: "numeric",
-    month: "long",
-    year: "numeric"
-  });
-};
-    
-function getTmdStarttime() {
-  const now = new Date();
-
-  // ปัดขึ้นเป็นชั่วโมงถัดไป
-  let slot = now.getHours() + 1;
-
-  // ถ้าเลย 23 → ข้ามไปวันถัดไป 00:00
-  if (slot === 24) {
-    slot = 0;
-    now.setDate(now.getDate() + 1);
-  }
-
-  now.setHours(slot, 0, 0, 0);
-
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
-  const min = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
-}
-
 
   useEffect(() => {
     fetch("/datahub/dash_data/public/districts.geojson")
@@ -98,35 +129,76 @@ function getTmdStarttime() {
       });
   }, []);
 
+  // ----------------------------------
+  // Hover Effect
+  // ----------------------------------
+  const highlightStyle = {
+    weight: 2,
+    color: "#ffffff",
+    fillOpacity: 0.95,
+    className: "transition-all duration-300"
+  };
 
+  const resetStyle = layer => {
+    layer.setStyle({
+      fillColor: getColor(layer.feature.properties.amp_th),
+      fillOpacity: 0.75,
+      color: "#ffffff",
+      weight: 1,
+    });
+  };
 
+  // ----------------------------------
+  // Run for each polygon
+  // ----------------------------------
+  const onEachFeature = (feature, layer) => {
+    const amp = feature.properties.amp_th;
+    const val = mockData[amp];
+    const color = getColor(amp);
+
+    layer.setStyle({
+      fillColor: color,
+      fillOpacity: 0.75,
+      color: "#ffffff",
+      weight: 1,
+    });
+
+    // Hover effect
+    layer.on({
+      mouseover: e => {
+        e.target.setStyle(highlightStyle);
+      },
+      mouseout: e => {
+        resetStyle(e.target);
+      },
+    });
+
+    // Custom Tooltip
+    layer.bindTooltip(customTooltipContent(amp, val, color), {
+      sticky: true,
+      direction: "top",
+      opacity: 1,
+      className: "leaflet-tooltip-custom"
+    });
+  };
 
   return (
-    <div className="w-full max-w-5xl mx-auto mt-2 p-4">
+  
+      <MapContainer
+        center={[19.169, 99.905]}
+        zoom={10}
+        style={{ height: "100%", width: "100%", borderRadius: "16px" }}
+      >
+        {/* Beautiful White Tile */}
+        <TileLayer
+          url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
+        />
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {geoData && <GeoJSON data={geoData} onEachFeature={onEachFeature} />}
+        {geoData && <FitBounds geoData={geoData} />}
 
+        <TailwindLegend />
+      </MapContainer>
 
-</div>
-
-
-      <div className="rounded-xl overflow-hidden shadow-lg border border-gray-200">
-        <MapContainer
-          center={[19.169, 99.905]}
-          zoom={10}
-          style={{ height: "420px", width: "100%" }}
-          dragging={false}
-          zoomControl={false}
-          doubleClickZoom={false}
-          scrollWheelZoom={false}
-          touchZoom={false}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-         
-        </MapContainer>
-      </div>
-      
-      
-    </div>
   );
 }
