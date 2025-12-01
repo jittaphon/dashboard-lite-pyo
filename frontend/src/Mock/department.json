@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "title": "วัณโรค",
+    "key": "tuberculosis",
+    "topic": [
+      {
+        "title": "ความครอบคลุมการขึ้นทะเบียนรักษาวัณโรค treatment coverage 88%",
+        "key": "tb_treatment_coverage"
+      },
+      {
+        "title": "รักษาสำเร็จ success 85%",
+        "key": "tb_success"
+      },
+      {
+        "title": "อัตราตาย < ร้อยละ 10",
+        "key": "tb_death"
+      }
+    ]
+    
+  },
+  {
+    "id": 2,
+    "title": "สุขภาพจิตและจิตเวช",
+    "key": "mental_health"
+  },
+  {
+    "id": 3,
+    "title": "ยาเสพติด",
+    "key": "narcotics"
+  },
+  {
+    "id": 4,
+    "title": "อุบัติเหตุ",
+    "key": "accidents"
+  },
+  {
+    "id": 5,
+    "title": "NCD",
+    "key": "ncd"
+  },
+  {
+    "id": 6,
+    "title": "มะเร็ง",
+    "key": "cancer"
+  },
+  {
+    "id": 7,
+    "title": "พัฒนาการเด็ก 0-5 ปี",
+    "key": "child_development_0_5"
+  },
+  {
+    "id": 8,
+    "title": "ผู้สูงอายุ",
+    "key": "elderly"
+  },
+  {
+    "id": 9,
+    "title": "EOC",
+    "key": "eoc"
+  }
+]
