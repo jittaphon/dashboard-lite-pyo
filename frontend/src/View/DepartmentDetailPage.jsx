@@ -109,7 +109,7 @@ export default function DepartmentDetailPage() {
               style={{ transitionDelay: "500ms" }}
             >
               <h2 className="text-2xl font-bold text-white mb-6 drop-shadow">
-                หัวข้อประเมิน (Topic)
+                ประเด็น  {department.title}
               </h2>
 
               <div className="space-y-4">

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Home } from "lucide-react";
 import useDepartmentStore from '../Store/useDepartmentStore';
-
+import Map from '../components/Map';
 export default function TopicDetailPage() {
   const { departmentKey, topicKey } = useParams();
   const navigate = useNavigate();
@@ -112,88 +112,17 @@ export default function TopicDetailPage() {
           <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
           
           <div className="relative">
-            <div className="flex items-center gap-4 mb-4">
-              {/* Topic Badge */}
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center border-2 border-white/70 shadow-lg">
-                <span className="text-white font-bold text-2xl">
-                  {department.topic.findIndex(t => t.key === topicKey) + 1}
-                </span>
-              </div>
-              
-              <div>
-                <h1 className="text-4xl font-bold text-white drop-shadow-md">
-                  {topic.title}
-                </h1>
-                <p className="text-white/60 text-lg mt-1 uppercase tracking-wide">
-                  {topic.key.replace(/_/g, ' ')}
-                </p>
-              </div>
-            </div>
-
-            {/* Department Tag */}
-            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/20">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              <span className="text-white/80 text-sm">แผนก: {department.title}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Section */}
-        <div className={`transition-all duration-700 ${
-          isVisible 
-            ? 'opacity-100 translate-y-0' 
-            : 'opacity-0 translate-y-8'
-        }`} style={{ transitionDelay: '300ms' }}>
-          
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-            <div className="w-1 h-8 bg-gradient-to-b from-emerald-400 to-teal-400 rounded-full" />
-            รายละเอียด
-          </h2>
-
-          {/* Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Main Content Card */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all">
-              <h3 className="text-white font-semibold text-xl mb-4 flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-sm">📋</span>
-                </div>
-                ข้อมูลทั่วไป
-              </h3>
-              <p className="text-white/70 leading-relaxed">
-                รายละเอียดเกี่ยวกับ {topic.title} ในแผนก {department.title} จะแสดงที่นี่
-              </p>
-            </div>
+           <div style={{ height: "500px", width: "100%" }}>
+  <Map />
+</div>
 
-            {/* Additional Info Card */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all">
-              <h3 className="text-white font-semibold text-xl mb-4 flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-sm">ℹ️</span>
-                </div>
-                ข้อมูลเพิ่มเติม
-              </h3>
-              <p className="text-white/70 leading-relaxed">
-                ข้อมูลสำคัญและรายละเอียดเพิ่มเติมเกี่ยวกับบริการนี้
-              </p>
-            </div>
 
-            {/* Full Width Card */}
-            <div className="lg:col-span-2 bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all">
-              <h3 className="text-white font-semibold text-xl mb-4 flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white text-sm">📝</span>
-                </div>
-                ขั้นตอนและแนวทาง
-              </h3>
-              <p className="text-white/70 leading-relaxed">
-                ขั้นตอนการให้บริการและแนวทางการดูแลผู้ป่วยสำหรับ {topic.title}
-              </p>
-            </div>
-
+           
           </div>
         </div>
+
+      
       </div>
 
       <style jsx>{`
