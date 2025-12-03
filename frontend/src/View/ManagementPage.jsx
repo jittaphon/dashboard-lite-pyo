@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import PhayaoMap from "../components/Map";
-import DynamicDataTable from "../components/Table";
 import ConfigTableModal from "../components/ConfigModal/ConfigTableModal"; // 👈 เพิ่ม
 import RGL, { WidthProvider } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -152,10 +151,6 @@ export default function ManagementPage() {
     switch (item.id) {
       case "map":
         return <PhayaoMap />;
-      
-      case "table":
-        return <DynamicDataTable config={item.config} />; // 👈 ส่ง config
-      
       case "chart":
         return (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl shadow-inner">

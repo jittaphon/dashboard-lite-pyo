@@ -8,7 +8,7 @@ import RGL, { WidthProvider } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import PhayaoMap from '../components/Map';
-import DataTable from '../components/Table';
+
 
 const GridLayout = WidthProvider(RGL);
 
@@ -57,8 +57,6 @@ export default function TopicDetailPage() {
             </div>
           </div>
         );
-      case "table":
-        return <DataTable />;
       case "analytics":
         return (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 rounded-xl shadow-inner">
@@ -173,7 +171,7 @@ export default function TopicDetailPage() {
             >
               <GridLayout
                 className="layout"
-                layout={savedLayout.gridLayout}
+                layout={c.gridLayout}
                 cols={12}
                 rowHeight={50}
                 isDraggable={false}
