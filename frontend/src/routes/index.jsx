@@ -6,7 +6,7 @@ import { createHashRouter } from "react-router-dom";
 import ViewPage from "../View/ViewPage";
 import ManagementPage from "../View/ManagementPage";
 import DepartmentDetailPage from "../View/DepartmentDetailPage";
-import TopicDetailPage from "../View/TopicDetailPage";  // 👈 เพิ่มนี้
+import TopicDetailPage from "../View/TopicDetailPage";
 
 export const routes = createHashRouter([
   {
@@ -18,7 +18,7 @@ export const routes = createHashRouter([
         element: <ViewPage /> 
       },
       { 
-        path: "management", 
+        path: "management/:topicKey",  // 👈 เปลี่ยนเป็นรับ topicKey
         element: <ManagementPage /> 
       },
       { 
@@ -26,7 +26,7 @@ export const routes = createHashRouter([
         element: <DepartmentDetailPage /> 
       },
       { 
-        path: "department/:departmentKey/topic/:topicKey",  // 👈 เพิ่ม route ใหม่
+        path: "department/:departmentKey/topic/:topicKey",
         element: <TopicDetailPage /> 
       },
     ],
