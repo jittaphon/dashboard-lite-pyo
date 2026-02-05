@@ -102,40 +102,67 @@ export default function DepartmentDetailPage() {
             />
 
             {/* Topic Section */}
-            <div
-              className={`mt-12 bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 transition-all duration-700 ${
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-              }`}
-              style={{ transitionDelay: "500ms" }}
-            >
-              <h2 className="text-2xl font-bold text-white mb-6 drop-shadow">
-                ประเด็น  {department.title}
-              </h2>
+           {/* Topic Section */}
+<div
+  className={`mt-12 bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 transition-all duration-700 ${
+    isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+  }`}
+  style={{ transitionDelay: "500ms" }}
+>
+  <h2 className="text-2xl font-bold text-white mb-6 drop-shadow">
+    ประเด็น {department.title}
+  </h2>
 
-              <div className="space-y-4">
-                {department.topic?.map((item, index) => (
-                  <div
-                    key={index}
-                    onClick={() =>
-                      navigate(
-                        `/department/${departmentKey}/topic/${item.key}`
-                      )
-                    }
-                    className="group relative pl-6 py-3 border-l-4 border-white/20 hover:border-cyan-300 transition-all cursor-pointer"
-                  >
-                    <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white/50 group-hover:bg-cyan-300 shadow group-hover:shadow-cyan-300/60 transition-all" />
+  <div className="space-y-4">
+    {department.topic?.map((item, index) => {
+      // ตรวจสอบว่าเป็น Link ภายนอกหรือไม่
+      const isExternal = item.url && item.url.trim() !== "";
 
-                    <p className="text-white text-lg font-medium group-hover:text-cyan-200 transition">
-                      {item.title}
-                    </p>
+      const handleClick = () => {
+        if (isExternal) {
+          // เงื่อนไข 1: ถ้ามี url ให้เปิดหน้าใหม่ (Window Open)
+          window.open(item.url, "_blank", "noopener,noreferrer");
+        } else {
+          // เงื่อนไข 2: ถ้าไม่มี url ให้ใช้ navigate ภายในแอป
+          navigate(`/department/${departmentKey}/topic/${item.key}`);
+        }
+      };
 
-                    <span className="text-xs text-white/50 uppercase tracking-wide bg-white/10 px-2 py-1 rounded-md mt-1 inline-block group-hover:text-cyan-200 group-hover:bg-cyan-300/10 transition">
-                      {item.key}
-                    </span>
-                  </div>
-                ))}
-              </div>
+      return (
+        <div
+          key={index}
+          onClick={handleClick}
+          className="group relative pl-6 py-4 border-l-4 border-white/20 hover:border-cyan-300 bg-white/0 hover:bg-white/5 transition-all cursor-pointer rounded-r-xl"
+        >
+          {/* Bullet Point */}
+          <div className="absolute left-[-10px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white/50 group-hover:bg-cyan-300 shadow group-hover:shadow-cyan-300/60 transition-all" />
+
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-white text-lg font-medium group-hover:text-cyan-200 transition">
+                {item.title}
+              </p>
+              <span className="text-xs text-white/50 uppercase tracking-wide bg-white/10 px-2 py-1 rounded-md mt-2 inline-block group-hover:text-cyan-200 group-hover:bg-cyan-300/10 transition">
+                {isExternal ? "External Link" : item.key}
+              </span>
             </div>
+
+            {/* แสดง Icon เพิ่มเติมถ้าเป็นลิงก์ภายนอก */}
+            {isExternal && (
+              <div className="text-white/30 group-hover:text-cyan-300 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
           </div>
         </div>
       </div>

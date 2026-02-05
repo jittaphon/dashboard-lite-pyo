@@ -4,7 +4,8 @@ import { Activity, User } from "lucide-react";
 
 export default function Navbar() {
   const location = useLocation();
-  const activeTab = location.pathname === "/management" ? "management" : "view";
+  // แก้ไข logic การเช็ค activeTab ให้ตรงกับ path /model
+  const activeTab = location.pathname === "/model" ? "model" : "view";
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -18,27 +19,22 @@ export default function Navbar() {
 
   const tabs = [
     { name: "View", path: "/", key: "view" },
-    { name: "Management", path: "/management", key: "management" },
+    { name: "Phayao Health Model", path: "/model", key: "model" },
   ];
 
   const activeIndex = tabs.findIndex(tab => tab.key === activeTab);
   
-  // Custom Styles
   const pillColor = '#FFFFFF'; 
 
-  // CSS สำหรับ Active Pill (ตัวเลื่อนสีขาว) - เน้น Specular Highlight
   const pillShadowStyle = {
-    // 1. เงาลึกสีเข้ม (Drop Shadow) - ทำให้ Pill ลอย
     boxShadow: `
       0 10px 30px rgba(0, 0, 0, 0.4), 
-      /* 2. เงาสะท้อน/Highlight ด้านใน (Specular Highlight) - ทำให้ดูมันวาว */
       inset 0 0 0 1.5px rgba(255, 255, 255, 0.7), 
-      inset 0 0 10px rgba(0, 0, 0, 0.05) /* Optional faint inner dark shadow */
+      inset 0 0 10px rgba(0, 0, 0, 0.05)
     `,
     backgroundColor: pillColor,
   };
 
-  // CSS สำหรับ Switch Background (กรอบด้านนอก) - เน้น Glass Effect และ Glow
   const switchBgStyle = {
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     backdropFilter: 'blur(15px)',
@@ -66,13 +62,13 @@ export default function Navbar() {
           <span className="text-2xl font-bold text-white">HealthDash</span>
         </div>
 
-        {/* 🌟 Liquid Switch - Final Enhanced Version 🌟 */}
+        {/* 🌟 Liquid Switch - ปรับขนาดความกว้างเพิ่มขึ้น 🌟 */}
         <div 
-          className="relative w-[300px] h-14 rounded-full p-1 transition-all duration-300" 
+          className="relative w-[400px] h-14 rounded-full p-1 transition-all duration-300" 
           style={switchBgStyle}
         >
           
-          {/* 1. ตัว Indicator/Pill (Active State) */}
+          {/* 1. ตัว Indicator/Pill */}
           <div 
             className="absolute top-1 bottom-1 rounded-full transition-all duration-300 ease-in-out"
             style={{
@@ -88,7 +84,8 @@ export default function Navbar() {
               <Link
                 key={tab.key}
                 to={tab.path}
-                className={`w-1/2 flex items-center justify-center text-base transition-all duration-300 ${
+                // ใช้ text-sm และ whitespace-nowrap เพื่อป้องกันข้อความตัด
+                className={`w-1/2 flex items-center justify-center text-sm md:text-base whitespace-nowrap px-4 transition-all duration-300 ${
                   activeTab === tab.key 
                     ? "font-extrabold text-emerald-700"
                     : "font-medium text-white/70 hover:text-white"
@@ -99,7 +96,6 @@ export default function Navbar() {
             ))}
           </div>
         </div>
-        {/* 🌟 END: Liquid Switch Final 🌟 */}
 
         {/* User Actions */}
         <div className="flex items-center gap-4">

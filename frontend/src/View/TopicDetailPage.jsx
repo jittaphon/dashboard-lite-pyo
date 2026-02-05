@@ -8,7 +8,7 @@ import RGL, { WidthProvider } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import PhayaoMap from '../components/Map';
-
+import DataTable from '../components/Table';
 
 const GridLayout = WidthProvider(RGL);
 
@@ -40,10 +40,6 @@ export default function TopicDetailPage() {
     setTimeout(() => navigate('/'), 300);
   };
 
-  const handleEdit = () => {
-    navigate(`/management/${topicKey}`);
-  };
-
   function renderComponent(item) {
     switch (item.id) {
       case "map":
@@ -57,6 +53,8 @@ export default function TopicDetailPage() {
             </div>
           </div>
         );
+      case "table":
+        return <DataTable />;
       case "analytics":
         return (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 rounded-xl shadow-inner">
@@ -132,13 +130,7 @@ export default function TopicDetailPage() {
           </div>
 
           {/* Edit Button */}
-          <button
-            onClick={handleEdit}
-            className="flex items-center gap-2 px-5 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold rounded-xl shadow-lg transition-all hover:scale-105"
-          >
-            <Edit size={18} />
-            <span>แก้ไข Layout</span>
-          </button>
+        
         </div>
 
         {/* Breadcrumb */}
@@ -171,7 +163,7 @@ export default function TopicDetailPage() {
             >
               <GridLayout
                 className="layout"
-                layout={c.gridLayout}
+                layout={savedLayout.gridLayout}
                 cols={12}
                 rowHeight={50}
                 isDraggable={false}
@@ -203,13 +195,7 @@ export default function TopicDetailPage() {
             <p className="text-white/70 mb-8">
               คุณยังไม่ได้สร้าง Layout สำหรับหัวข้อนี้
             </p>
-            <button
-              onClick={handleEdit}
-              className="px-8 py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold rounded-xl shadow-lg transition-all hover:scale-105 inline-flex items-center gap-2"
-            >
-              <Edit size={20} />
-              <span>สร้าง Layout</span>
-            </button>
+           
           </div>
         )}
 

@@ -174,26 +174,57 @@ export default function CircularNavigation() {
             </div>
           </div>
         </div>
-        
-        {/* Center Circle - Enhanced */}
-        <div className={`absolute z-20 transition-all duration-1000 ${isAnimating ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}>
-          <div className="w-36 h-36 bg-white/20 backdrop-blur-2xl rounded-full border-4 border-white/30 shadow-2xl flex flex-col items-center justify-center relative group hover:scale-105 transition-transform">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-transparent" />
-            
-            {/* Rotating Border */}
-            <div className="absolute inset-0 rounded-full border-2 border-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-padding animate-spin-slow opacity-50" style={{ padding: '2px' }} />
-            
-            <h2 className="text-white font-bold text-xl drop-shadow-lg relative z-10">แผนกบริการ</h2>
-            <p className="text-white/70 text-sm mt-1 relative z-10">เลือกแผนก</p>
-            
-            {/* Pulse Ring */}
-            <div className="absolute inset-0 rounded-full border-2 border-white/50 animate-ping" />
-            
-            {/* Glow Effect */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-400/20 to-teal-400/20 blur-xl group-hover:blur-2xl transition-all" />
-          </div>
-        </div>
+{/* Center Circle - Fixed Zoom Version */}
+<div className={`absolute z-20 transition-all duration-1000 ${isAnimating ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}>
+  <div className="w-52 h-52 rounded-full p-1 relative group cursor-pointer shadow-[0_0_50px_rgba(20,184,166,0.5)]">
+    
+    {/* ส่วนขอบและ Effect ด้านหลัง */}
+    <div className="absolute inset-0 rounded-full border-2 border-dashed border-emerald-400/40 animate-spin-slow opacity-50" />
+    <div className="absolute inset-0 rounded-full border-2 border-white/20 scale-95" />
+    
+    {/* ตัว Container หลัก */}
+    <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-white/30 shadow-inner z-10">
+      
+      {/* รูปคุณหมอ - ปรับขนาดให้ใหญ่ค้างไว้เลย (ใช้ scale-150 ตามความชอบ) */}
+    <img
+  src="https://pyo.moph.go.th/datahub/dash_data/public/images/doctor.jpg"
+  alt="Doctor"
+  className="
+    w-full h-full
+    object-cover
+    /* ปรับเป็น center เพื่อให้กึ่งกลางพอดี ไม่ดันขึ้นเหมือนอันเก่า */
+    object-center 
+    /* ลดขนาดลงมาเหลือ 1.1 หรือ 1.2 (110-120%) */
+    scale-[1.15] 
+    /* เวลาเอาเมาส์ชี้ค่อยให้มันซูมเข้าไปนิดนึงพองาม */
+    transition-transform duration-700 
+    group-hover:scale-125
+  "
+/>
 
+      {/* Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent opacity-80" />
+
+      {/* Text Section */}
+      <div className="absolute bottom-10 left-0 right-0 text-center px-2 z-20">
+  
+  {/* ชื่อคุณหมอ - ปรับขนาดให้ชัดขึ้นอีกนิด */}
+  <h2 className="text-white font-bold text-[15px] leading-tight tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+    นายแพทย์ชรินทร์ ดีปินตา
+  </h2>
+  
+<p className="text-yellow-200 font-semibold text-[10px] mt-0 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+  นายแพทย์สาธารณสุขจังหวัดพะเยา
+</p>
+  
+</div>
+    </div>
+
+    {/* แสงฟุ้งรอบนอก (เอา scale-110 ออกเพื่อให้ขนาดวงคงที่) */}
+    <div className="absolute -inset-2 bg-emerald-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+    <div className="absolute inset-0 rounded-full border-4 border-emerald-400/30 animate-ping opacity-20 pointer-events-none" />
+  </div>
+</div>
         {/* Decorative Circles - Enhanced */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div className="w-[520px] h-[520px] border border-white/10 rounded-full animate-spin-slow" />
