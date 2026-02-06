@@ -1,92 +1,41 @@
 [
   {
     "id": 1,
-    "title": "วัณโรค",
-    "key": "tuberculosis",
+    "title": "กลุ่มงานควบคุมโรคติดต่อ",
+    "key": "cdc",
     "topic": [
-      {
-        "title": "ความครอบคลุมการขึ้นทะเบียนรักษาวัณโรค treatment coverage 88%",
-        "key": "tb_treatment_coverage"
-      },
-      {
-        "title": "รักษาสำเร็จ success 85%",
-        "key": "tb_success"
-      },
-      {
-        "title": "อัตราตาย < ร้อยละ 10",
-        "key": "tb_death"
-      }
     ]
-    
   },
   {
     "id": 2,
-    "title": "สุขภาพจิตและจิตเวช",
-    "key": "mental_health"
+    "title": "กลุ่มงานยาเสพติด|เเละสุขภาพจิต",
+    "key": "narcotics_and_mental_health",
+    "topic": [
+      { "title": "การดำเนินงานด้านสุขภาพจิตและจิตเวช", "key": "mental_health_performance", "url": "" },
+      { "title": "การดำเนินงานด้านยาเสพติด", "key": "narcotics_control", "url": "" }
+    ]
   },
   {
     "id": 3,
-    "title": "ยาเสพติด",
-    "key": "narcotics"
+    "title": "กลุ่มงานส่งเสริมสุขภาพ",
+    "key": "health_promotion",
+    "topic": [
+      { "title": "การดำเนินการคัดกรองพัฒนาการเด็ก (DSPM)", "key": "child_development_0_5_dspm", "url": "https://pyo.moph.go.th/datahub/pyo-kpi/public/#/kpi/dspm" },
+      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน (3 หมอ รู้จักคุณ) ", "key": "elderly_screening", "url": "https://3doctor.hss.moph.go.th/main/rp_screen" },
+      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน ( HDC ) ", "key": "dm_ht_screening", "url": "https://hdc.moph.go.th/pyo/public/standard-report-detail/aa86b13e8cb60cae6c3216b7e3e5f151" }
+
+    ]
   },
   {
     "id": 4,
-    "title": "อุบัติเหตุ",
-    "key": "accidents"
-  },
-  {
-    "id": 5,
-    "title": "NCD",
-    "key": "ncd",
+    "title": "กลุ่มงานควบคุมโรคไม่ติดต่อ",
+    "key": "ncd_control",
     "topic": [
-      {
-        "title": "NCD",
-        "key": "NCD",
-        "url": "https://pyo.moph.go.th/ncd/public/"
-      }
+      { "title": "ผลการดำเนินงาน NCD จังหวัดพะเยา", "key": "ncd_dashboard", "url": "https://pyo.moph.go.th/ncd/public/" }
     ]
   },
-  {
-    "id": 6,
-    "title": "มะเร็ง",
-    "key": "cancer"
-  },
-  {
-    "id": 7,
-    "title": "พัฒนาการเด็ก 0-5 ปี",
-    "key": "child_development_0_5",
-    "topic": [
-      {
-        "title": "การดำเนินการคัดกรองพัฒนาการเด็ก 0-5 ปี (DSPM)",
-        "key": "child_development_0_5_dspm",
-        "url": "https://pyo.moph.go.th/datahub/pyo-kpi/public/#/kpi/dspm"
-      }
-     
-    ]
-    
-  },
-  {
-    "id": 8,
-    "title": "ผู้สูงอายุ",
-    "key": "elderly",
-     "topic": [
-      {
-        "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน ( 3 หมอ รู้จักคุณ)  ",
-        "key": "elderly_screening",
-        "url": "https://3doctor.hss.moph.go.th/main/rp_screen"
-      },
-      {
-        "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน (HDC)  ",
-        "key": "elderly_hdc",
-        "url": "https://hdc.moph.go.th/pyo/public/standard-report-detail/aa86b13e8cb60cae6c3216b7e3e5f151"
-      }
-     
-    ]
-  },
-  {
-    "id": 9,
-    "title": "EOC",
-    "key": "eoc"
-  }
-  
+  { "id": 5, "title": "กลุ่มงานประกันสุขภาพ", "key": "health_insurance", "topic": [] },
+  { "id": 6, "title": "กลุ่มงานทันตสาธารณสุข", "key": "dental_health", "topic": [] },
+  { "id": 7, "title": "กลุ่มงานอนามัยสิ่งเเวดล้อม|เเละอาชีวินามัย", "key": "env_occ_health", "topic": [] },
+  { "id": 8, "title": "กลุ่มงานเเพทย์แผนไทยเเละการเเพทย์ทางเลือก", "key": "thai_traditional_medicine", "topic": [] }
 ]

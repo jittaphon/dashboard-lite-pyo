@@ -1,402 +1,286 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowUpRight, Activity, Zap, Globe, LayoutGrid, X, Shield, Target, Database } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import useDepartmentStore from '../Store/useDepartmentStore';
 
-export default function CircularNavigation() {
+export default function PhayaoImageDashboard() {
   const navigate = useNavigate();
   const departments = useDepartmentStore((state) => state.departments);
-
-  const [selectedDept, setSelectedDept] = useState(null);
-  const [hoveredDept, setHoveredDept] = useState(null);
-  const [isAnimating, setIsAnimating] = useState(true);
-  const [rotation, setRotation] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startAngle, setStartAngle] = useState(0);
-  const [isAutoRotating, setIsAutoRotating] = useState(true);
-  const containerRef = useRef(null);
-  const autoRotateRef = useRef(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [time, setTime] = useState(new Date());
+  const [showModel, setShowModel] = useState(false); // ควบคุม Modal
 
   useEffect(() => {
-    setTimeout(() => setIsAnimating(false), 500);
+    setIsLoaded(true);
+    const clock = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(clock);
   }, []);
 
-  // Auto Rotation Effect
-  useEffect(() => {
-    if (isAutoRotating && !isDragging) {
-      autoRotateRef.current = setInterval(() => {
-        setRotation(prev => (prev + 0.2) % 360);
-      }, 30);
-    } else {
-      if (autoRotateRef.current) {
-        clearInterval(autoRotateRef.current);
-      }
-    }
-    
-    return () => {
-      if (autoRotateRef.current) {
-        clearInterval(autoRotateRef.current);
-      }
-    };
-  }, [isAutoRotating, isDragging]);
+  const departmentImages = useMemo(() => ({
+    cdc: "https://images.unsplash.com/photo-1584634731339-252c581abfc5?auto=format&fit=crop&q=80&w=1000",
+    narcotics_and_mental_health: "https://images.unsplash.com/photo-1527137342181-19aab11a8ee8?auto=format&fit=crop&q=80&w=1000",
+    health_promotion: "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&q=80&w=1000",
+    ncd_control: "https://images.unsplash.com/photo-1628595351029-c2bf17511435?q=80&w=1000&auto=format&fit=crop",
+    health_insurance: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=1000",
+    dental_health: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=1000",
+    env_occ_health: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=1000",
+    thai_traditional_medicine: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=1000",
+  }), []);
 
-  const handleDepartmentClick = (dept) => {
-    if (isDragging) return;
-    setSelectedDept(dept.id);
-    setTimeout(() => {
-      navigate(`/department/${dept.key}`);
-      setSelectedDept(null);
-    }, 300);
+  const mophIcon = "https://pyo.moph.go.th/datahub/dash_data/public/images/icon.png";
+
+  // Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.3 } }
   };
 
-  const getAngle = (e) => {
-    if (!containerRef.current) return 0;
-    const rect = containerRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const mouseX = e.clientX || e.touches?.[0]?.clientX;
-    const mouseY = e.clientY || e.touches?.[0]?.clientY;
-    return Math.atan2(mouseY - centerY, mouseX - centerX) * (180 / Math.PI);
-  };
-
-  const handleMouseDown = (e) => {
-    setIsAutoRotating(false);
-    setIsDragging(true);
-    setStartAngle(getAngle(e) - rotation);
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    const currentAngle = getAngle(e);
-    setRotation(currentAngle - startAngle);
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    // หมุนอัตโนมัติต่อหลังจากปล่อยเมาส์ 2 วินาที
-    setTimeout(() => setIsAutoRotating(true), 2000);
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      window.addEventListener('touchmove', handleMouseMove);
-      window.addEventListener('touchend', handleMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('touchmove', handleMouseMove);
-        window.removeEventListener('touchend', handleMouseUp);
-      };
-    }
-  }, [isDragging, startAngle]);
-
-  const getCircularPosition = (index, total) => {
-    const radius = 260;
-    const angle = (index * 360 / total) - 90 + rotation;
-    const radian = (angle * Math.PI) / 180;
-    
-    return {
-      x: radius * Math.cos(radian),
-      y: radius * Math.sin(radian),
-      angle: angle + 90
-    };
+  const itemVariants = {
+    hidden: { x: 100, opacity: 0 },
+    visible: { x: 0, opacity: 1, transition: { type: "spring", stiffness: 50, damping: 20 } }
   };
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-float-slow" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-emerald-400/10 rounded-full blur-3xl animate-float-reverse" />
-        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-teal-400/5 rounded-full blur-2xl animate-pulse-slow" />
+    <div className="h-screen w-full bg-[#022c22] text-white font-kanit overflow-hidden relative selection:bg-emerald-500/30 transform-gpu">
+      
+      {/* 1. Grain Noise Overlay */}
+      <div className="fixed inset-0 z-[60] pointer-events-none opacity-[0.03] mix-blend-overlay" 
+           style={{ backgroundImage: `url('https://grainy-gradients.vercel.app/noise.svg')` }} />
+
+      {/* 2. Header */}
+      <motion.header 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="absolute top-0 left-0 w-full z-[70] p-8 flex justify-between items-start pointer-events-none"
+      >
+        <div className="flex items-center gap-6 pointer-events-auto group">
+          <div className="bg-white/10 p-4 rounded-3xl backdrop-blur-2xl border border-white/20 group-hover:rotate-6 transition-all duration-500 shadow-[0_0_40px_rgba(16,185,129,0.2)]">
+            <img src={mophIcon} alt="MOPH" className="w-16 h-16 object-contain" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-4xl md:text-5xl font-black italic tracking-[-0.05em] uppercase leading-none">
+              PHAYAO <span className="text-emerald-300 drop-shadow-[0_0_15px_rgba(110,231,183,0.5)]">STRATEGIC</span>
+            </h1>
+            <div className="flex items-center gap-3">
+               <div className="h-[1px] w-8 bg-emerald-500/50"></div>
+               <p className="text-[10px] font-mono tracking-[0.5em] text-emerald-400/60 uppercase">System Data Hub 2026</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden md:flex flex-col items-end pointer-events-auto bg-black/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-2xl">
+          <div className="flex items-center gap-2 mb-1">
+            <Globe size={10} className="text-emerald-400 animate-spin" />
+            <span className="text-[9px] font-mono tracking-[0.2em] text-emerald-400/80 uppercase">Node-PYO: Active</span>
+          </div>
+          <span className="text-xl font-black font-mono tracking-widest text-white/90">
+            {time.toLocaleTimeString('en-US', { hour12: false })}
+          </span>
+        </div>
+      </motion.header>
+
+      {/* --- Main Interactive Accordion --- */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate={isLoaded ? "visible" : "hidden"}
+        className="flex w-full h-full items-stretch relative z-10"
+      >
+        {departments.map((dept, index) => (
+          <motion.div
+            key={dept.id}
+            variants={itemVariants}
+            onClick={() => navigate(`/department/${dept.key}`)}
+            className="relative flex-1 flex flex-col justify-between overflow-hidden will-change-[flex,transform] transition-[flex] duration-[700ms] ease-[cubic-bezier(0.2,1,0.2,1)] cursor-pointer border-r border-white/5 bg-[#022c22] hover:flex-[10] group"
+          >
+            {/* BG & Layer */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+              <img 
+                src={departmentImages[dept.key] || "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=1000"} 
+                alt={dept.title}
+                className="w-full h-full object-cover grayscale group-hover:grayscale-0 opacity-10 group-hover:opacity-40 transition-all duration-[1000ms] group-hover:scale-[1.1]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/95 via-transparent to-[#022c22]" />
+            </div>
+
+            {/* Content Area */}
+            <div className="relative z-10 h-full flex flex-col justify-between pointer-events-none">
+              <div className="p-8 pt-48 transition-transform duration-500">
+                <span className="text-6xl font-black font-mono text-white/5 group-hover:text-emerald-400/10 italic block">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              </div>
+
+              {/* Vertical Title */}
+              <div className="absolute inset-0 flex items-center justify-center group-hover:opacity-0 transition-opacity duration-300">
+                 <h3 className="text-[18px] font-bold whitespace-nowrap -rotate-90 uppercase tracking-[0.6em] text-white/20">
+                   {dept.title.replace('|', '')}
+                 </h3>
+              </div>
+
+              {/* Expanded Content Area */}
+              <div className="absolute inset-0 flex flex-col justify-center px-12 md:px-20 opacity-0 group-hover:opacity-100 transition-all duration-700 delay-100 translate-y-8 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto">
+                 <div className="max-w-4xl flex flex-col md:flex-row items-center gap-16">
+                    <div className="flex-1 text-center md:text-left">
+                      <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
+                        <div className="bg-emerald-500/20 p-2 rounded-lg border border-emerald-500/20"><LayoutGrid size={16} className="text-emerald-400" /></div>
+                        <span className="text-[10px] font-mono tracking-[0.4em] text-emerald-400/80 uppercase">Cluster::{dept.key}</span>
+                      </div>
+                      <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter leading-[0.9] text-white mb-10 uppercase drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
+                        {dept.title.split('|').map((line, i) => (<span key={i} className="block">{line}</span>))}
+                      </h2>
+                      <div className="flex items-center justify-center md:justify-start gap-6">
+                         <button className="flex items-center gap-4 px-10 py-5 bg-white text-[#022c22] rounded-2xl font-black text-xs hover:bg-emerald-400 hover:text-white transition-all active:scale-95 uppercase tracking-widest shadow-2xl">
+                           Explore Data <ArrowUpRight size={18} />
+                         </button>
+                         <div className="flex flex-col items-start leading-none">
+                            <span className="text-[10px] font-mono text-white/40 uppercase mb-1">Metrics Tracked</span>
+                            <span className="text-xl font-black text-white">{dept.topic?.length || 0} Indicators</span>
+                         </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center md:items-end gap-6 shrink-0">
+                      <div className="flex gap-2 h-24 items-end">
+                        {(() => {
+                          const tc = dept.topic?.length || 0;
+                          if (tc === 0) return [...Array(5)].map((_, i) => <div key={i} className="w-2.5 h-4 bg-white/5 rounded-full" />);
+                          return [...Array(tc)].map((_, i) => (
+                            <motion.div key={i} initial={{ height: 0 }} whileInView={{ height: `${30 + (i * (60 / tc))}px` }} className="w-2.5 rounded-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.6)]" />
+                          ));
+                        })()}
+                      </div>
+                      <div className="text-right leading-none">
+                        <p className="text-[10px] font-mono text-emerald-400/60 uppercase tracking-[0.4em] mb-2">Operational Status</p>
+                        <div className="flex items-baseline justify-end gap-2">
+                          <span className="text-6xl font-black italic text-white">{String(dept.topic?.length || 0).padStart(2, '0')}</span>
+                          <span className="text-2xl font-bold text-white/20 italic">ACTIVE</span>
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Bottom Status Bar */}
+              <div className="p-8 flex justify-between items-end border-t border-white/5 bg-gradient-to-t from-black/40 to-transparent">
+                <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#10b981] animate-pulse" />
+                    <span className="text-[8px] font-mono tracking-[0.2em] text-white/30 uppercase">Node_Status: Ready</span>
+                </div>
+                <div className="w-12 h-12 rounded-2xl border border-white/10 flex items-center justify-center group-hover:bg-emerald-500 group-hover:border-transparent transition-all duration-700">
+                  <Zap size={18} className="text-white/20 group-hover:text-white" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* --- Footer Action: Strategic Model Button --- */}
+      <div className="absolute bottom-8 left-8 z-[80]">
+        <button 
+          onClick={(e) => { e.stopPropagation(); setShowModel(true); }}
+          className="group relative flex items-center gap-4 bg-emerald-500/10 hover:bg-emerald-500 transition-all p-2 pr-8 rounded-full border border-emerald-500/30 backdrop-blur-md"
+        >
+          <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center group-hover:bg-white transition-colors shadow-lg">
+            <Target className="text-white group-hover:text-emerald-600" size={20} />
+          </div>
+          <div className="flex flex-col items-start leading-none">
+            <span className="text-[10px] font-mono font-bold text-emerald-400 group-hover:text-white transition-colors uppercase tracking-widest">Vision Node</span>
+            <span className="text-sm font-black text-white italic group-hover:text-emerald-950 transition-colors uppercase">View Strategic Model</span>
+          </div>
+        </button>
       </div>
 
-      <div 
-        ref={containerRef}
-        className="relative w-full h-screen flex items-center justify-center"
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleMouseDown}
-        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-      >
-        
-        {/* Text ซ้าย - Enhanced Animation */}
-        <div className={`absolute left-12 top-1/2 -translate-y-1/2 max-w-md transition-all duration-1000 ${
-          isAnimating ? 'opacity-0 -translate-x-20' : 'opacity-100 translate-x-0'
-        }`}>
-          <div className="text-white/90 space-y-4">
-            <div className="overflow-hidden">
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-emerald-100 to-white/60 bg-clip-text text-transparent animate-gradient-x">
-               ผลการขับเคลื่อนแผนยุทธศาสตร์สาธารณสุขจังหวัดพะเยา
-              </h1>
-            </div>
-            <p className="text-2xl text-white/70 font-light animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-              เลือกประเด็นที่ต้องการ
-            </p>
-            <div className="h-1 w-24 bg-gradient-to-r from-emerald-400 to-transparent rounded-full animate-expand" style={{ animationDelay: '400ms' }} />
-            <p className="text-white/50 text-sm leading-relaxed animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-              ลากเพื่อหมุนวงกลม<br />
-              คลิกเพื่อเข้าสู่แผนกบริการ
-            </p>
-            
-            {/* Decorative Elements */}
-            <div className="flex gap-2 mt-6 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
-              <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-              <div className="w-3 h-3 rounded-full bg-teal-400 animate-pulse" style={{ animationDelay: '100ms' }} />
-              <div className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse" style={{ animationDelay: '200ms' }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Text ขวา - Enhanced Animation */}
-        <div className={`absolute right-12 top-1/2 -translate-y-1/2 max-w-md text-right transition-all duration-1000 ${
-          isAnimating ? 'opacity-0 translate-x-20' : 'opacity-100 translate-x-0'
-        }`}>
-          <div className="text-white/90 space-y-4">
-            <div className="overflow-hidden">
-              <h2 className="text-5xl font-bold bg-gradient-to-l from-white via-teal-100 to-white/60 bg-clip-text text-transparent animate-gradient-x">
-                Health<br />Services
-              </h2>
-            </div>
-            <div className="h-1 w-24 bg-gradient-to-l from-teal-400 to-transparent rounded-full ml-auto animate-expand" style={{ animationDelay: '400ms' }} />
-            <p className="text-white/50 text-sm leading-relaxed animate-fade-in-up" style={{ animationDelay: '600ms' }}>
-              Interactive Department<br />
-              Navigation System
-            </p>
-            
-            {/* Stats Display */}
-            <div className="mt-6 space-y-2 animate-fade-in-up" style={{ animationDelay: '800ms' }}>
-              <div className="flex items-center justify-end gap-3">
-                <span className="text-white/40 text-xs">Total Departments</span>
-                <span className="text-2xl font-bold text-white">{departments.length}</span>
+      {/* --- Strategic Model Modal (Overlay) --- */}
+      <AnimatePresence>
+        {showModel && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 md:p-20 bg-emerald-950/90 backdrop-blur-2xl"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full max-w-7xl h-full bg-black/40 rounded-[3rem] border border-white/10 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-10 flex justify-between items-center border-b border-white/5">
+                <div>
+                  <h2 className="text-5xl font-black italic text-white leading-none mb-2">PHAYAO MODEL <span className="text-emerald-400">2026</span></h2>
+                  <p className="text-xs font-mono text-white/40 uppercase tracking-[0.5em]">Strategic Integrated Health Management System</p>
+                </div>
+                <button onClick={() => setShowModel(false)} className="w-16 h-16 rounded-3xl bg-white/5 hover:bg-red-500 transition-all flex items-center justify-center group border border-white/10">
+                  <X size={32} className="text-white group-hover:scale-110 transition-transform" />
+                </button>
               </div>
-              <div className="h-px bg-gradient-to-l from-white/20 to-transparent" />
-            </div>
-          </div>
-        </div>
-{/* Center Circle - Fixed Zoom Version */}
-<div className={`absolute z-20 transition-all duration-1000 ${isAnimating ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}>
-  <div className="w-52 h-52 rounded-full p-1 relative group cursor-pointer shadow-[0_0_50px_rgba(20,184,166,0.5)]">
-    
-    {/* ส่วนขอบและ Effect ด้านหลัง */}
-    <div className="absolute inset-0 rounded-full border-2 border-dashed border-emerald-400/40 animate-spin-slow opacity-50" />
-    <div className="absolute inset-0 rounded-full border-2 border-white/20 scale-95" />
-    
-    {/* ตัว Container หลัก */}
-    <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-white/30 shadow-inner z-10">
-      
-      {/* รูปคุณหมอ - ปรับขนาดให้ใหญ่ค้างไว้เลย (ใช้ scale-150 ตามความชอบ) */}
-    <img
-  src="https://pyo.moph.go.th/datahub/dash_data/public/images/doctor.jpg"
-  alt="Doctor"
-  className="
-    w-full h-full
-    object-cover
-    /* ปรับเป็น center เพื่อให้กึ่งกลางพอดี ไม่ดันขึ้นเหมือนอันเก่า */
-    object-center 
-    /* ลดขนาดลงมาเหลือ 1.1 หรือ 1.2 (110-120%) */
-    scale-[1.15] 
-    /* เวลาเอาเมาส์ชี้ค่อยให้มันซูมเข้าไปนิดนึงพองาม */
-    transition-transform duration-700 
-    group-hover:scale-125
-  "
-/>
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-transparent to-transparent opacity-80" />
-
-      {/* Text Section */}
-      <div className="absolute bottom-10 left-0 right-0 text-center px-2 z-20">
-  
-  {/* ชื่อคุณหมอ - ปรับขนาดให้ชัดขึ้นอีกนิด */}
-  <h2 className="text-white font-bold text-[15px] leading-tight tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
-    นายแพทย์ชรินทร์ ดีปินตา
-  </h2>
-  
-<p className="text-yellow-200 font-semibold text-[10px] mt-0 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-  นายแพทย์สาธารณสุขจังหวัดพะเยา
-</p>
-  
-</div>
-    </div>
-
-    {/* แสงฟุ้งรอบนอก (เอา scale-110 ออกเพื่อให้ขนาดวงคงที่) */}
-    <div className="absolute -inset-2 bg-emerald-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-    <div className="absolute inset-0 rounded-full border-4 border-emerald-400/30 animate-ping opacity-20 pointer-events-none" />
-  </div>
-</div>
-        {/* Decorative Circles - Enhanced */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-          <div className="w-[520px] h-[520px] border border-white/10 rounded-full animate-spin-slow" />
-          <div className="absolute w-[560px] h-[560px] border border-white/5 rounded-full animate-pulse-slow" />
-          <div className="absolute w-[600px] h-[600px] border border-white/5 rounded-full animate-spin-reverse" />
-          
-          {/* Particle Dots */}
-          <div className="absolute w-2 h-2 bg-emerald-400 rounded-full top-1/4 left-1/2 animate-float-particle" />
-          <div className="absolute w-2 h-2 bg-teal-400 rounded-full bottom-1/4 right-1/3 animate-float-particle" style={{ animationDelay: '1s' }} />
-          <div className="absolute w-2 h-2 bg-cyan-400 rounded-full top-1/3 right-1/4 animate-float-particle" style={{ animationDelay: '2s' }} />
-        </div>
-
-        {/* Circular Navigation Items */}
-        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
-          {departments.map((dept, index) => {
-            const pos = getCircularPosition(index, departments.length);
-            const isHovered = hoveredDept === dept.id;
-            const isSelected = selectedDept === dept.id;
-            const delay = index * 100;
-            
-            return (
-              <div
-                key={dept.id}
-                onClick={() => handleDepartmentClick(dept)}
-                onMouseEnter={() => setHoveredDept(dept.id)}
-                onMouseLeave={() => setHoveredDept(null)}
-                className="absolute cursor-pointer group pointer-events-auto"
-                style={{
-                  transform: `translate(${pos.x}px, ${pos.y}px)`,
-                  transition: isDragging ? 'none' : `all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${isAnimating ? delay + 'ms' : '0ms'}`,
-                  opacity: isAnimating ? 0 : 1
-                }}
-              >
-                {/* Department Card */}
-                <div className={`relative transition-all duration-300 ${isSelected ? 'scale-150 opacity-0' : 'scale-100 opacity-100'}`}>
-                  <div className={`w-28 h-28 bg-white/10 backdrop-blur-xl rounded-2xl border-2 transition-all duration-300 shadow-xl flex flex-col items-center justify-center
-                    ${isHovered ? 'bg-white/25 border-white/50 scale-110 shadow-2xl shadow-white/20' : 'border-white/20'}`}>
-                    
-                    {/* Number Badge */}
-                    <div className={`absolute -top-2.5 -right-2.5 w-9 h-9 rounded-full flex items-center justify-center shadow-lg border-2 transition-all duration-300
-                      ${isHovered ? 'bg-gradient-to-br from-yellow-400 to-orange-500 border-white/70 scale-110' : 'bg-gradient-to-br from-blue-400 to-blue-600 border-white/50'}`}>
-                      <span className="text-white font-bold text-sm">{dept.id}</span>
+              {/* Modal Content - Strategic Model Graphics */}
+              <div className="flex-1 overflow-y-auto p-12 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 h-full">
+                  
+                  {/* Card 1: Vision */}
+                  <div className="bg-emerald-500/5 rounded-[2.5rem] p-10 border border-emerald-500/10 flex flex-col gap-6">
+                    <Shield className="text-emerald-400" size={48} />
+                    <h3 className="text-3xl font-black italic uppercase">Infrastructure</h3>
+                    <p className="text-white/60 leading-relaxed font-light">การบริหารจัดการทรัพยากรด้านสุขภาพผ่านระบบ Data Hub ส่วนกลาง เชื่อมโยงทุกหน่วยงานในจังหวัดพะเยาแบบ Real-time</p>
+                    <div className="mt-auto pt-6 border-t border-white/5 flex flex-col gap-2">
+                       <span className="text-[10px] font-mono text-emerald-400">STATUS: OPTIMIZED</span>
+                       <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden"><div className="w-[85%] h-full bg-emerald-500 shadow-[0_0_10px_#10b981]"></div></div>
                     </div>
+                  </div>
 
-                    {/* Content */}
-                    <div className="text-center px-2">
-                      <h3 className="text-white font-bold text-sm mb-1 drop-shadow-md leading-tight">
-                        {dept.title}
-                      </h3>
-                      <p className="text-white/60 text-xs font-medium uppercase tracking-wider">
-                        {dept.key.split('_')[0]}
-                      </p>
-                    </div>
-
-                    {/* Hover Indicator */}
-                    <div className={`absolute -bottom-2 transition-all duration-300 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-                      <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
-                        <svg className="w-3 h-3 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                        </svg>
+                  {/* Card 2: Central Graph View (The Model Graphic) */}
+                  <div className="md:col-span-2 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-[2.5rem] p-10 border border-white/5 relative overflow-hidden group">
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: `radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)`, backgroundSize: '40px 40px' }}></div>
+                    <div className="relative z-10">
+                      <Database className="text-emerald-400 mb-6 animate-bounce" size={48} />
+                      <h3 className="text-5xl font-black italic uppercase mb-8 leading-tight">Data Integration <br/><span className="text-emerald-400">Architecture</span></h3>
+                      
+                      {/* Simulating a Diagram */}
+                      <div className="flex flex-wrap gap-4">
+                        {['CDC Node', 'Mental Health Node', 'NCD Tracker', 'Promotion Hub', 'Dental Data'].map((node, i) => (
+                          <div key={i} className="px-6 py-3 rounded-full bg-black/50 border border-emerald-500/30 text-xs font-mono font-bold text-white shadow-xl">
+                            {node}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div className="mt-12 p-8 bg-black/60 rounded-3xl border border-white/5 backdrop-blur-xl">
+                         <div className="flex items-center gap-4 mb-4">
+                            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
+                            <span className="text-xs font-mono uppercase tracking-widest font-bold">Live Data Transmission Pipeline</span>
+                         </div>
+                         <div className="space-y-3">
+                            {[70, 45, 90].map((w, i) => (
+                              <div key={i} className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${w}%` }} transition={{ duration: 1, delay: i*0.2 }} className="h-full bg-emerald-400/50"></motion.div>
+                              </div>
+                            ))}
+                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Glow Effect */}
-                  {isHovered && (
-                    <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl animate-pulse" />
-                  )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Rotation Hint - Enhanced */}
-        {!isDragging && (
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm flex items-center gap-2 animate-bounce-subtle">
-            <svg className="w-5 h-5 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span className="font-medium">
-              {isAutoRotating ? 'หมุนอัตโนมัติ - ลากเพื่อควบคุม' : 'ลากเพื่อหมุน'}
-            </span>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      <style jsx>{`
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes spin-reverse {
-          from { transform: rotate(360deg); }
-          to { transform: rotate(0deg); }
-        }
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0) translateX(0); }
-          50% { transform: translateY(-20px) translateX(10px); }
-        }
-        @keyframes float-reverse {
-          0%, 100% { transform: translateY(0) translateX(0); }
-          50% { transform: translateY(20px) translateX(-10px); }
-        }
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.05); }
-        }
-        @keyframes gradient-x {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes expand {
-          from {
-            width: 0;
-            opacity: 0;
-          }
-          to {
-            width: 6rem;
-            opacity: 1;
-          }
-        }
-        @keyframes bounce-subtle {
-          0%, 100% { transform: translate(-50%, 0); }
-          50% { transform: translate(-50%, -5px); }
-        }
-        @keyframes float-particle {
-          0%, 100% { transform: translate(0, 0); opacity: 0.3; }
-          50% { transform: translate(10px, -15px); opacity: 0.8; }
-        }
-        
-        .animate-spin-slow {
-          animation: spin-slow 30s linear infinite;
-        }
-        .animate-spin-reverse {
-          animation: spin-reverse 40s linear infinite;
-        }
-        .animate-float-slow {
-          animation: float-slow 8s ease-in-out infinite;
-        }
-        .animate-float-reverse {
-          animation: float-reverse 10s ease-in-out infinite;
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 4s ease-in-out infinite;
-        }
-        .animate-gradient-x {
-          background-size: 200% 200%;
-          animation: gradient-x 3s ease infinite;
-        }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.8s ease-out forwards;
-        }
-        .animate-expand {
-          animation: expand 0.8s ease-out forwards;
-        }
-        .animate-bounce-subtle {
-          animation: bounce-subtle 2s ease-in-out infinite;
-        }
-        .animate-float-particle {
-          animation: float-particle 6s ease-in-out infinite;
-        }
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap');
+        body { margin: 0; background-color: #022c22; font-family: 'Kanit', sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.2); border-radius: 10px; }
+        * { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
       `}</style>
     </div>
   );

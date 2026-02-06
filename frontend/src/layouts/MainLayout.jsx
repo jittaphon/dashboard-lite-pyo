@@ -28,7 +28,7 @@ function MainLayout({ children }) {
       <div className="absolute -top-20 -left-20 w-[300px] h-[300px] bg-teal-300 opacity-25 blur-[120px] rounded-full"></div>
       <div className="absolute bottom-10 right-10 w-[350px] h-[350px] bg-emerald-400 opacity-25 blur-[140px] rounded-full"></div>
 
-      <Navbar />
+      
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
