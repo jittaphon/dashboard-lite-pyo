@@ -20,7 +20,7 @@
     "topic": [
       { "title": "การดำเนินการคัดกรองพัฒนาการเด็ก (DSPM)", "key": "child_development_0_5_dspm", "url": "https://pyo.moph.go.th/datahub/pyo-kpi/public/#/kpi/dspm" },
       { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน (3 หมอ รู้จักคุณ) ", "key": "elderly_screening", "url": "https://3doctor.hss.moph.go.th/main/rp_screen" },
-      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน ( HDC ) ", "key": "dm_ht_screening", "url": "https://hdc.moph.go.th/pyo/public/standard-report-detail/aa86b13e8cb60cae6c3216b7e3e5f151" }
+      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน (HDC) ", "key": "dm_ht_screening", "url": "https://hdc.moph.go.th/pyo/public/standard-report-detail/aa86b13e8cb60cae6c3216b7e3e5f151" }
 
     ]
   },

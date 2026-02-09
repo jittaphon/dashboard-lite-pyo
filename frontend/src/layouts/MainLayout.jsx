@@ -1,42 +1,54 @@
 import React, { useState, useEffect } from "react";
-import { BarChart2, Settings, Home, Activity, FileText, Upload, Download, User, ShoppingCart } from "lucide-react";
-import { Bar, Line, Pie } from "react-chartjs-2";
 import { Outlet } from "react-router-dom";
-import Navbar from "../components/Navbar";
-import ScrollToTop from "../components/ScrollToTop";
-// Main Layout Component
-function MainLayout({ children }) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState("view");
+import { AnimatePresence, motion } from "framer-motion";
+import IntroSplash from "../components/IntroSplash";
+
+export default function MainLayout() {
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 50);
+    const timer = setTimeout(() => setShowSplash(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-600">
-       <ScrollToTop /> {/* เพิ่มตรงนี้ */}
-      {/* Soft Glow Center */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[600px] h-[600px] bg-white opacity-15 blur-[180px] rounded-full"></div>
-      </div>
+    <div className="min-h-screen relative overflow-hidden bg-[#022c22]">
+      <AnimatePresence mode="wait">
+        {showSplash ? (
+          <IntroSplash key="splash" />
+        ) : (
+          <motion.div key="content" className="relative min-h-screen">
+            
+            {/* --- Bubble Layer: วิ่งรอบเดียวแล้วค้างเป็นพื้นหลังไปเลยเพื่อความลื่น --- */}
+            <motion.div 
+              initial={{ clipPath: 'circle(0% at 50% 50%)' }}
+              animate={{ clipPath: 'circle(150% at 50% 50%)' }}
+              transition={{ 
+                duration: 1.8, // เพิ่มเวลาให้ยาวขึ้นหน่อยเพื่อให้ดูละมุน
+                ease: [0.76, 0, 0.24, 1], // จังหวะ Smooth แบบ Exponential
+              }}
+              className="fixed inset-0 bg-gradient-to-br from-emerald-600/95 to-teal-600/95 z-[50]"
+            />
 
-      {/* Background decorative glows */}
-      <div className="absolute -top-20 -left-20 w-[300px] h-[300px] bg-teal-300 opacity-25 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-10 right-10 w-[350px] h-[350px] bg-emerald-400 opacity-25 blur-[140px] rounded-full"></div>
+            {/* --- Content: ค่อยๆ Fade In ขึ้นมาซ้อนบนวงกลมที่กำลังขยาย --- */}
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ 
+                delay: 0.8, // ให้เริ่ม Fade ตอนวงกลมขยายไปได้ครึ่งทางแล้ว
+                duration: 1.2,
+                ease: "easeOut"
+              }}
+              className="relative z-[100] min-h-screen"
+            >
+              <main>
+                <Outlet />
+              </main>
+            </motion.div>
 
-      
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-}
-
-// Main App
-export default function App() {
-  return <MainLayout />;
 }
