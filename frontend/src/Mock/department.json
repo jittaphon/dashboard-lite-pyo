@@ -11,8 +11,6 @@
     "title": "กลุ่มงานยาเสพติด|เเละสุขภาพจิต",
     "key": "narcotics_and_mental_health",
     "topic": [
-      { "title": "การดำเนินงานด้านสุขภาพจิตและจิตเวช", "key": "mental_health_performance", "url": "" },
-      { "title": "การดำเนินงานด้านยาเสพติด", "key": "narcotics_control", "url": "" }
     ]
   },
   {
@@ -34,7 +32,11 @@
       { "title": "ผลการดำเนินงาน NCD จังหวัดพะเยา", "key": "ncd_dashboard", "url": "https://pyo.moph.go.th/ncd/public/" }
     ]
   },
-  { "id": 5, "title": "กลุ่มงานประกันสุขภาพ", "key": "health_insurance", "topic": [] },
+  { "id": 5, "title": "กลุ่มงานประกันสุขภาพ", "key": "health_insurance", "topic": [
+      { "title": "การดำเงินงานระบบรายงานข้อมูลเบิกจ่าย", "key": "health_insurance_report", "url": "https://pyo.moph.go.th/datahub/bcc-pyo/public/" }
+    
+
+  ] },
   { "id": 6, "title": "กลุ่มงานทันตสาธารณสุข", "key": "dental_health", "topic": [] },
   { "id": 7, "title": "กลุ่มงานอนามัยสิ่งเเวดล้อม|เเละอาชีวินามัย", "key": "env_occ_health", "topic": [] },
   { "id": 8, "title": "กลุ่มงานเเพทย์แผนไทยเเละการเเพทย์ทางเลือก", "key": "thai_traditional_medicine", "topic": [] }
