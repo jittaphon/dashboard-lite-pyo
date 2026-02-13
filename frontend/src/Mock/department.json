@@ -8,7 +8,7 @@
   },
   {
     "id": 2,
-    "title": "กลุ่มงานยาเสพติด|เเละสุขภาพจิต",
+    "title": "กลุ่มงานยาเสพติดเเละสุขภาพจิต",
     "key": "narcotics_and_mental_health",
     "topic": [
     ]
@@ -18,9 +18,9 @@
     "title": "กลุ่มงานส่งเสริมสุขภาพ",
     "key": "health_promotion",
     "topic": [
-      { "title": "การดำเนินการคัดกรองพัฒนาการเด็ก (DSPM)", "key": "child_development_0_5_dspm", "url": "https://pyo.moph.go.th/datahub/pyo-kpi/public/#/kpi/dspm" },
-      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน (3 หมอ รู้จักคุณ) ", "key": "elderly_screening", "url": "https://3doctor.hss.moph.go.th/main/rp_screen" },
-      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน (HDC) ", "key": "dm_ht_screening", "url": "https://hdc.moph.go.th/pyo/public/standard-report-detail/aa86b13e8cb60cae6c3216b7e3e5f151" }
+      { "title": "การดำเนินการคัดกรองพัฒนาการเด็ก (DSPM)", "key": "child_development_0_5_dspm", "url": "http://203.157.189.9/datahub/pyo-kpi/public/#/kpi/dspm" },
+      { "title": "ผลการดำเนินงาน คัดกรองผู้สูงอายุ 9 ด้าน  ", "key": "elderly_screening", "url": "" }
+      
 
     ]
   },
@@ -33,11 +33,15 @@
     ]
   },
   { "id": 5, "title": "กลุ่มงานประกันสุขภาพ", "key": "health_insurance", "topic": [
-      { "title": "การดำเงินงานระบบรายงานข้อมูลเบิกจ่าย", "key": "health_insurance_report", "url": "https://pyo.moph.go.th/datahub/bcc-pyo/public/" }
+      { "title": "การดำเงินงานระบบรายงานข้อมูลเบิกจ่าย", "key": "health_insurance_report", "url": "http://203.157.189.9/datahub/bcc-pyo/public/" }
     
 
   ] },
   { "id": 6, "title": "กลุ่มงานทันตสาธารณสุข", "key": "dental_health", "topic": [] },
-  { "id": 7, "title": "กลุ่มงานอนามัยสิ่งเเวดล้อม|เเละอาชีวินามัย", "key": "env_occ_health", "topic": [] },
-  { "id": 8, "title": "กลุ่มงานเเพทย์แผนไทยเเละการเเพทย์ทางเลือก", "key": "thai_traditional_medicine", "topic": [] }
+  { "id": 7, "title": "กลุ่มงานอนามัยสิ่งเเวดล้อมเเละอาชีวินามัย", "key": "env_occ_health", "topic": [] },
+  { "id": 8, "title": "กลุ่มงานเเพทย์แผนไทยเเละการเเพทย์ทางเลือก", "key": "thai_traditional_medicine", "topic": [] },
+  {"id": 9, "title": "กลุ่มงานสุขภาพดิจิทัล", "key": "digital_health", "topic": [
+      { "title": "การให้บริการแพทย์ทางไกล (Telemedicine)", "key": "tele_med", 
+      "url": "http://203.157.189.9/datahub/pyo-kpi/public/#/kpi/tele_med" }
+  ] }
 ]
