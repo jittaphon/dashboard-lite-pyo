@@ -1,18 +1,19 @@
-// ในไฟล์ src/Store/useDepartmentStore.js
+// src/Store/useDepartmentStore.js
 import { create } from 'zustand';
-import departmentData from '../Mock/department.json'; // Import ข้อมูล Mock เข้ามาใน Store
 
 const useDepartmentStore = create((set) => ({
-  departments: departmentData || [], // ตั้งค่า Initial State เป็นข้อมูลจาก JSON
+  departments: [],
   isLoading: false,
-  // Action สำหรับการดึงข้อมูล (ในอนาคตจะเปลี่ยนไป Fetch จาก API)
-  fetchDepartments: async () => {
+  fetchDepartments: async (year) => {
     set({ isLoading: true });
-    // ในขั้นต้น: ไม่ต้องทำอะไร เพราะโหลดจาก JSON มาแล้ว
-    // ในอนาคต: await fetch('/api/departments') ... set(data)
-    set({ isLoading: false });
-  },
-  // Action อื่น ๆ เช่น เพิ่ม แก้ไข ลบ
+    try {
+      const response = await fetch(`http://203.157.189.9/datahub/kpi-pyo-hub/backend/public/index.php/api/v1/kpi/dashboard?year=${year}`);
+      const data = await response.json();
+      set({ departments: data, isLoading: false });
+    } catch (error) {
+      set({ isLoading: false });
+    }
+  }
 }));
 
 export default useDepartmentStore;

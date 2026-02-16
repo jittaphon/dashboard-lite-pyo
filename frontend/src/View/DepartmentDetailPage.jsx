@@ -99,7 +99,7 @@ export default function DepartmentDetailPage() {
               className="bg-white/90 backdrop-blur-md p-10 rounded-[3.5rem] shadow-[0_40px_80px_rgba(0,0,0,0.08)] border border-white relative overflow-hidden group"
             >
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-10 -mt-10 blur-2xl transition-all group-hover:bg-emerald-500/10" />
-              <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-800/40 mb-2 font-black">Data_Nodes</p>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-800/40 mb-2 font-black">Data_KPI</p>
               <div className="flex items-end gap-5">
                 <span className="text-7xl font-black text-emerald-600 leading-none">
                     {String(department.topic?.length || 0).padStart(2, '0')}

@@ -29,7 +29,7 @@
     "title": "กลุ่มงานควบคุมโรคไม่ติดต่อ",
     "key": "ncd_control",
     "topic": [
-      { "title": "ผลการดำเนินงาน NCD จังหวัดพะเยา", "key": "ncd_dashboard", "url": "https://pyo.moph.go.th/ncd/public/" }
+      { "title": "ผลการดำเนินงาน NCD จังหวัดพะเยา", "key": "ncd_dashboard", "url": "http://203.157.189.9/ncd/public/" }
     ]
   },
   { "id": 5, "title": "กลุ่มงานประกันสุขภาพ", "key": "health_insurance", "topic": [
