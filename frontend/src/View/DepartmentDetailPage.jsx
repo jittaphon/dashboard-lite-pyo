@@ -2,12 +2,13 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  ArrowLeft, Activity, ChevronRight, Globe2, Sparkles, Fingerprint, 
-  Target, CheckCircle2, XCircle, AlertCircle
+  ArrowLeft, Activity, ChevronRight, Globe2, Fingerprint, 
+  Target, CheckCircle2, XCircle, AlertCircle, Inbox, Eye, Search
 } from "lucide-react";
 import { Progress, ConfigProvider } from "antd";
 import useDepartmentStore from "../Store/useDepartmentStore";
 
+// ─── ANIMATIONS ───────────────────────────────────────────────
 const pageVariants = {
   initial: { opacity: 0 },
   animate: { opacity: 1, transition: { duration: 0.5, staggerChildren: 0.1 } },
@@ -19,6 +20,138 @@ const itemVariants = {
   animate: { y: 0, opacity: 1, transition: { duration: 0.5 } }
 };
 
+// ─── KPI CARD (Updated Shadow & "ติดตาม" Label) ──────────────────
+function KpiCard({ item, index }) {
+  const isMonitor = !item.threshold || item.threshold === 0;
+  const isPassed  = item.status === "ผ่าน";
+  const hasValue  = item.percent !== null && item.percent !== undefined;
+  
+  // Dynamic Theme Logic
+  let themeColor = "#94a3b8"; // Default Slate
+  let StatusIcon = <AlertCircle size={10} />;
+  let statusLabel = "Pending";
+
+  if (isMonitor) {
+    themeColor = "#0ea5e9"; // Sky 500
+    StatusIcon = <Activity size={10} />;
+    statusLabel = "ติดตาม";
+  } else if (isPassed) {
+    themeColor = "#10b981"; // Emerald 500
+    StatusIcon = <CheckCircle2 size={10} />;
+    statusLabel = "Target Met";
+  } else if (hasValue) {
+    themeColor = "#f43f5e"; // Rose 500
+    StatusIcon = <XCircle size={10} />;
+    statusLabel = "Below Target";
+  }
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      whileHover={{ 
+        y: -6, 
+        transition: { duration: 0.3 },
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.12)" 
+      }}
+      // เพิ่ม shadow ประจำการ์ดที่นี่ เพื่อไม่ให้กลืนกับพื้นหลัง
+      className="group bg-white/95 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/60 shadow-[0_10px_30px_-5px_rgba(0,0,0,0.06)] hover:bg-white transition-all duration-300 flex flex-col gap-4 relative overflow-hidden"
+    >
+      {/* Background Decor for Monitoring */}
+      {isMonitor && (
+        <div className="absolute -right-4 -top-4 w-24 h-24 bg-sky-50 rounded-full blur-2xl opacity-50 group-hover:opacity-80 transition-opacity" />
+      )}
+
+      {/* Header Badge */}
+      <div className="flex items-center justify-between relative z-10">
+        <div 
+          className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border transition-colors"
+          style={{ 
+            color: themeColor, 
+            backgroundColor: `${themeColor}12`, 
+            borderColor: `${themeColor}30` 
+          }}
+        >
+          {StatusIcon} {statusLabel}
+        </div>
+        <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">
+          KPI_{String(index + 1).padStart(2, "0")}
+        </span>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex items-start gap-5 relative z-10">
+        <div className="flex-shrink-0">
+          {isMonitor && !hasValue ? (
+            <div className="w-[76px] h-[76px] rounded-full bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 group-hover:border-sky-200 group-hover:text-sky-400 transition-colors shadow-inner">
+              <Activity size={24} className="animate-pulse mb-1" />
+              <span className="text-[8px] font-black uppercase tracking-tighter">Active</span>
+            </div>
+          ) : (
+            <div className="drop-shadow-sm">
+              <Progress
+                type="circle"
+                percent={item.percent || 0}
+                size={76}
+                strokeWidth={10}
+                strokeColor={themeColor}
+                trailColor={`${themeColor}15`}
+                format={(p) => (
+                  <div className="flex flex-col items-center leading-none">
+                    <span className="text-[15px] font-black text-slate-800" style={{ color: isMonitor ? '#0369a1' : 'inherit' }}>
+                      {isMonitor && !hasValue ? "—" : `${p}%`}
+                    </span>
+                  </div>
+                )}
+              />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 pt-1">
+          <h3 className="text-sm font-bold text-slate-800 leading-snug line-clamp-3 group-hover:text-emerald-800 transition-colors">
+            {item.title}
+          </h3>
+          {isMonitor && (
+            <div className="mt-2 flex items-center gap-1.5">
+               <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+               <p className="text-[10px] text-sky-600 font-bold uppercase tracking-tight">รายการติดตามผลคืบหน้า</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer Info */}
+      <div className="flex items-center justify-between pt-4 border-t border-slate-100 relative z-10">
+        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-wider">
+          {!isMonitor ? (
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Target size={12} className="text-emerald-500" />
+              <span>Goal <span className="text-slate-800 font-black">{item.threshold}%</span></span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-sky-600/80">
+              <Search size={12} />
+              <span>ติดตามการดำเนินงาน</span>
+            </div>
+          )}
+          {item.weight && (
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Fingerprint size={12} className="text-teal-500" />
+              <span className="text-slate-800 font-black">{item.weight}</span>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => item.url && window.open(item.url, "_blank")}
+          className="w-9 h-9 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#064e3b] group-hover:text-white group-hover:rotate-[-45deg] transition-all shadow-md flex-shrink-0"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── PAGE ─────────────────────────────────────────────────────
 export default function DepartmentDetailPage() {
   const { departmentKey } = useParams();
   const navigate = useNavigate();
@@ -27,14 +160,15 @@ export default function DepartmentDetailPage() {
 
   if (!department) return null;
 
-  const hasData = department.topic && department.topic.length > 0;
+  const topics = department.topic || [];
+  const hasData = topics.length > 0;
+  
+  // Analytics for Header
+  const monitoringCount = topics.filter(k => !k.threshold || k.threshold === 0).length;
+  const targetCount = topics.length - monitoringCount;
 
   return (
-    <ConfigProvider
-      theme={{
-        token: { colorPrimary: '#10b981', fontFamily: 'Kanit' },
-      }}
-    >
+    <ConfigProvider theme={{ token: { colorPrimary: '#10b981', fontFamily: 'Kanit' } }}>
       <AnimatePresence mode="wait">
         <motion.div
           key={departmentKey}
@@ -44,173 +178,139 @@ export default function DepartmentDetailPage() {
           exit="exit"
           className="min-h-screen w-full relative bg-[#f8faf9] font-kanit overflow-x-hidden"
         >
-          {/* Background Decor */}
-          <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 1, backgroundImage: `radial-gradient(circle, #065f46 1px, transparent 1px)`, backgroundSize: '30px 30px', opacity: 0.15 }} />
-          
-          <div className="absolute top-0 left-0 w-full h-[65vh] bg-gradient-to-br from-emerald-600 to-teal-700 overflow-hidden z-0">
-             {/* Animated Orb */}
-            <motion.div 
-              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.4, 0.3] }}
-              transition={{ duration: 10, repeat: Infinity }}
-              className="absolute -top-20 -right-20 w-[600px] h-[600px] bg-emerald-400/30 rounded-full blur-[100px]" 
+          <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 1, backgroundImage: `radial-gradient(circle, #065f46 1px, transparent 1px)`, backgroundSize: '40px 40px', opacity: 0.1 }} />
+
+          {/* Hero Section */}
+          <div className="absolute top-0 left-0 w-full h-[70vh] bg-gradient-to-br from-[#064e3b] via-[#065f46] to-[#0f766e] overflow-hidden z-0">
+            <motion.div
+              animate={{ rotate: [0, 360], scale: [1, 1.2, 1] }}
+              transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+              className="absolute -top-[20%] -right-[10%] w-[800px] h-[800px] bg-emerald-400/10 rounded-full blur-[120px]"
             />
-            <div className="absolute bottom-[-2px] left-0 w-full fill-[#f8faf9]">
-              <svg viewBox="0 0 1440 400" className="w-full h-auto" preserveAspectRatio="none">
-                <path d="M0,224L80,213.3C160,203,320,181,480,197.3C640,213,800,267,960,277.3C1120,288,1280,256,1360,240L1440,224L1440,400L1360,400C1280,400,1120,400,960,400C800,400,640,400,480,400C320,400,160,400,80,400L0,400Z"></path>
+            <div className="absolute bottom-[-2px] left-0 w-full">
+              <svg viewBox="0 0 1440 320" className="w-full h-auto" preserveAspectRatio="none">
+                <path fill="#f8faf9" d="M0,192L48,197.3C96,203,192,213,288,192C384,171,480,117,576,122.7C672,128,768,192,864,224C960,256,1056,256,1152,229.3C1248,203,1344,149,1392,122.7L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" />
               </svg>
             </div>
           </div>
 
-          <div className="relative z-10 max-w-6xl mx-auto px-6 pt-10 pb-20">
-            <motion.button 
+          <div className="relative z-10 max-w-7xl mx-auto px-6 pt-12 pb-24">
+
+            {/* Return Button */}
+            <motion.button
               variants={itemVariants}
               onClick={() => navigate("/")}
-              className="mb-12 group flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-md px-6 py-2.5 rounded-full border border-white/20 text-white transition-all shadow-xl"
+              className="mb-14 group flex items-center gap-4 bg-white/10 hover:bg-white/20 backdrop-blur-xl px-6 py-3 rounded-2xl border border-white/20 text-white transition-all shadow-2xl"
             >
-              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-              <span className="text-xs font-bold tracking-[0.2em] uppercase">Back to Hub</span>
+              <ArrowLeft size={20} className="group-hover:-translate-x-1.5 transition-transform" />
+              <span className="text-xs font-black tracking-[0.3em] uppercase">Return to Hub</span>
             </motion.button>
 
-            <header className="mb-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
-              <motion.div variants={itemVariants} className="max-w-2xl text-white">
-                <div className="flex items-center gap-3 mb-4 opacity-80">
-                  <div className="w-8 h-[1px] bg-white" />
-                  <span className="text-[10px] uppercase tracking-[0.5em] font-medium">Strategic Unit Identification</span>
+            {/* Hero Content */}
+            <header className="mb-20 flex flex-col xl:flex-row justify-between items-start xl:items-end gap-12">
+              <motion.div variants={itemVariants} className="max-w-3xl text-white">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="h-1 w-12 bg-emerald-400 rounded-full" />
+                  <span className="text-xs uppercase tracking-[0.6em] font-black text-emerald-200">Department Overview</span>
                 </div>
-                <h1 className="text-5xl md:text-6xl font-black italic tracking-tighter drop-shadow-2xl leading-[0.9] uppercase">
-                  {department.title.replace('กลุ่มงาน', '')}
+                <h1 className="text-6xl md:text-7xl xl:text-8xl font-black tracking-tighter drop-shadow-2xl leading-[0.85] uppercase italic">
+                  {department.title.replace('กลุ่มงาน', '').trim()}
                 </h1>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-md p-8 rounded-[3rem] shadow-2xl border border-white flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-800/40 mb-1 font-black">Total_KPIs</p>
-                  <span className="text-5xl font-black text-emerald-600 leading-none">
-                    {String(department.topic?.length || 0).padStart(2, '0')}
-                  </span>
+              {/* Stats Bar */}
+              <motion.div variants={itemVariants} className="bg-white/95 backdrop-blur-2xl p-8 rounded-[3.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-white flex items-center gap-10">
+                <div className="flex gap-8">
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mb-2 font-black">Performance</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-5xl font-black text-emerald-600 leading-none">{targetCount}</span>
+                      <span className="text-xs font-bold text-slate-300">KPIs</span>
+                    </div>
+                  </div>
+                  <div className="w-[1px] h-12 bg-slate-100 self-center" />
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-sky-500 mb-2 font-black">ติดตาม</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-5xl font-black text-sky-500 leading-none">{monitoringCount}</span>
+                      <span className="text-xs font-bold text-slate-300">Units</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="w-[1px] h-12 bg-emerald-100" />
-                <Fingerprint className="text-emerald-500/20" size={40} />
+                <div className="bg-emerald-50 w-16 h-16 rounded-[2rem] flex items-center justify-center shadow-inner">
+                  <Fingerprint className="text-emerald-500" size={32} />
+                </div>
               </motion.div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              <div className="lg:col-span-8 space-y-6">
-                <motion.div variants={itemVariants} className="flex items-center gap-4 mb-4 px-4">
-                  <span className="text-[10px] font-black uppercase tracking-[0.5em] text-emerald-900/40">Performance Stream</span>
-                  <div className="h-[1px] flex-1 bg-emerald-900/10" />
+              
+              <div className="lg:col-span-8">
+                <motion.div variants={itemVariants} className="flex items-center gap-5 mb-8 px-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400">Live Matrix Stream</span>
+                  </div>
+                  <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent" />
                 </motion.div>
 
                 {hasData ? (
-                  department.topic.map((item, index) => {
-                    const isPassed = item.status === "ผ่าน";
-                    const hasValue = item.percent !== null;
-                    
-                    return (
-                      <motion.div
-                        key={index}
-                        variants={itemVariants}
-                        whileHover={{ x: 10 }}
-                        className="group bg-white/80 backdrop-blur-sm p-6 rounded-[2.5rem] border border-white shadow-sm hover:shadow-xl hover:bg-white transition-all duration-500 flex flex-col sm:flex-row items-center gap-6"
-                      >
-                        {/* Donut Chart Section */}
-                        <div className="relative flex-shrink-0">
-                          <Progress
-                            type="circle"
-                            percent={item.percent || 0}
-                            size={100}
-                            strokeWidth={10}
-                            strokeColor={isPassed ? "#10b981" : item.percent === null ? "#e2e8f0" : "#fb7185"}
-                            format={(percent) => (
-                              <div className="flex flex-col items-center">
-                                <span className="text-lg font-black text-slate-800 leading-none">{percent}%</span>
-                                <span className="text-[8px] uppercase font-bold text-slate-400">Result</span>
-                              </div>
-                            )}
-                          />
-                        </div>
-
-                        {/* Info Section */}
-                        <div className="flex-1 text-center sm:text-left">
-                          <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
-                             {isPassed ? (
-                               <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider">
-                                 <CheckCircle2 size={12} /> Target Met
-                               </div>
-                             ) : hasValue ? (
-                               <div className="flex items-center gap-1 text-rose-500 bg-rose-50 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider">
-                                 <XCircle size={12} /> Below Target
-                               </div>
-                             ) : (
-                               <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider">
-                                 <AlertCircle size={12} /> Pending
-                               </div>
-                             )}
-                             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Node_{index + 1}</span>
-                          </div>
-                          
-                          <h3 className="text-lg font-bold text-slate-800 mb-3 group-hover:text-emerald-700 transition-colors line-clamp-2">
-                            {item.title}
-                          </h3>
-
-                          <div className="flex items-center justify-center sm:justify-start gap-6 text-[11px] font-bold">
-                             <div className="flex items-center gap-1.5 text-slate-500">
-                               <Target size={14} className="text-emerald-500" />
-                               <span>เป้าหมาย: <span className="text-slate-800">{item.threshold}%</span></span>
-                             </div>
-                             {item.weight && (
-                               <div className="flex items-center gap-1.5 text-slate-500">
-                                 <Activity size={14} className="text-teal-500" />
-                                 <span>ค่าน้ำหนัก: <span className="text-slate-800">{item.weight}</span></span>
-                               </div>
-                             )}
-                          </div>
-                        </div>
-
-                        {/* Action Section */}
-                        <button 
-                          onClick={() => item.url && window.open(item.url, "_blank")}
-                          className="w-14 h-14 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-inner"
-                        >
-                          <ChevronRight size={24} />
-                        </button>
-                      </motion.div>
-                    );
-                  })
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {topics.map((item, index) => (
+                      <KpiCard key={index} item={item} index={index} />
+                    ))}
+                  </div>
                 ) : (
-                  <div className="p-20 text-center bg-white/40 rounded-[3rem] border border-dashed border-emerald-200">
-                    <Inbox size={48} className="mx-auto mb-4 text-emerald-200" />
-                    <p className="text-emerald-900/40 font-bold uppercase tracking-widest">No Active Matrix</p>
+                  <div className="py-32 text-center bg-white/40 rounded-[4rem] border-4 border-dashed border-white shadow-xl flex flex-col items-center">
+                    <div className="w-24 h-24 bg-white/60 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                      <Inbox size={40} className="text-emerald-200" />
+                    </div>
+                    <h3 className="text-xl font-black text-emerald-900/40 uppercase tracking-widest">No Active Matrix Found</h3>
+                    <p className="text-slate-400 mt-2 font-medium">This unit is currently being configured.</p>
                   </div>
                 )}
               </div>
 
               <aside className="lg:col-span-4">
-                <motion.div 
+                <motion.div
                   variants={itemVariants}
-                  className="sticky top-10 p-10 bg-[#011a14] rounded-[3.5rem] text-white shadow-2xl overflow-hidden"
+                  className="sticky top-10 p-10 bg-[#022c22] rounded-[4rem] text-white shadow-[0_30px_60px_-15px_rgba(2,44,34,0.4)] overflow-hidden border border-white/5"
                 >
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/20 rounded-full blur-[60px]" />
+                  
                   <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-8">
-                      <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" />
-                      <h3 className="text-xs font-black uppercase tracking-[0.4em] text-emerald-400">Analysis Mode</h3>
-                    </div>
-                    <p className="text-emerald-100/60 font-medium leading-relaxed mb-10 italic text-lg">
-                      "การวิเคราะห์ข้อมูลเชิงลึกรายตัวชี้วัด เพื่อประเมินประสิทธิภาพการดำเนินงานแบบ Real-time"
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <div className="p-6 bg-white/5 rounded-[2rem] border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-all">
-                        <div className="flex items-center gap-4">
-                          <Globe2 size={20} className="text-emerald-400" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Live Updates</span>
-                        </div>
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" />
+                    <div className="flex items-center gap-3 mb-10">
+                      <div className="p-2 bg-emerald-500/20 rounded-xl">
+                        <Activity size={18} className="text-emerald-400" />
                       </div>
-                      
-                      <div className="p-6 bg-emerald-500 rounded-[2rem] text-emerald-950 flex items-center justify-between group cursor-pointer hover:scale-[1.02] transition-all">
-                        <span className="text-xs font-black uppercase tracking-widest">Report Generator</span>
-                        <ChevronRight size={18} />
+                      <h3 className="text-xs font-black uppercase tracking-[0.5em] text-emerald-400">Intelligence</h3>
+                    </div>
+
+                    <p className="text-2xl font-bold leading-tight mb-8 text-emerald-50">
+                      "วิเคราะห์ข้อมูลเชิงลึกรายตัวชี้วัด เพื่อประเมินผลกลุ่มงานแบบ Real-time"
+                    </p>
+
+                    <p className="text-sm text-emerald-100/40 leading-relaxed mb-12 font-medium">
+                      ระบบประมวลผลประสิทธิภาพรายกลุ่มงาน ช่วยให้เห็นจุดที่ควรพัฒนาและจุดแข็งของการดำเนินงานในปัจจุบัน
+                    </p>
+
+                    <div className="space-y-4">
+                      <div className="p-7 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-all cursor-default shadow-lg">
+                        <div className="flex items-center gap-5">
+                          <Globe2 size={24} className="text-emerald-400 group-hover:rotate-12 transition-transform" />
+                          <div>
+                            <span className="block text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-0.5">Network Status</span>
+                            <span className="text-xs font-bold text-white">Cloud Synchronized</span>
+                          </div>
+                        </div>
+                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
+                      </div>
+
+                      <div className="p-7 bg-emerald-500 rounded-[2.5rem] text-emerald-950 flex items-center justify-between cursor-pointer hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] hover:translate-y-[-4px] transition-all shadow-xl">
+                        <span className="text-xs font-black uppercase tracking-[0.2em]">Generate Unit Report</span>
+                        <div className="w-10 h-10 bg-emerald-900/20 rounded-full flex items-center justify-center">
+                           <ChevronRight size={20} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -220,6 +320,13 @@ export default function DepartmentDetailPage() {
           </div>
         </motion.div>
       </AnimatePresence>
+
+      <style global jsx>{`
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700;800;900&display=swap');
+        .ant-progress-circle .ant-progress-text {
+          transition: all 0.3s ease;
+        }
+      `}</style>
     </ConfigProvider>
   );
 }
