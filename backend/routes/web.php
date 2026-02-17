@@ -22,11 +22,9 @@ $router->group([
     // ยุบเหลือชั้นเดียว ไม่ต้องซ้อน api/v1 อีกรอบ
     $router->group(['prefix' => 'kpi'], function () use ($router) {
         
-        // GET /api/v1/kpi/dashboard
-        $router->get('dashboard', 'KpiController@getDashboard');
-
-        // GET /api/v1/kpi/sync/2569
-        $router->get('sync/{year}', 'KpiController@syncData');
+      $router->get('groups-kpi/{year}', 'KpiController@getGroupsKpiByYear');
+        
+      $router->get('ncd-kpi-department/{year}', 'KpiController@getNcdKpiDeparment');
 
     });
 });
