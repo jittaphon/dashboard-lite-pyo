@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, Activity, ChevronRight, Globe2, Fingerprint, 
-  Target, CheckCircle2, XCircle, AlertCircle, Inbox, Eye, Search
+  Target, CheckCircle2, XCircle, Clock,AlertCircle, Inbox, Eye, Search
 } from "lucide-react";
 import { Progress, ConfigProvider } from "antd";
 import useDepartmentStore from "../Store/useDepartmentStore";
@@ -39,12 +39,11 @@ function KpiCard({ item, index }) {
     themeColor = "#10b981"; // Emerald 500
     StatusIcon = <CheckCircle2 size={10} />;
     statusLabel = "Target Met";
-  } else if (hasValue) {
-    themeColor = "#f43f5e"; // Rose 500
-    StatusIcon = <XCircle size={10} />;
-    statusLabel = "Below Target";
-  }
-
+} else if (hasValue) {
+  themeColor = "#f59e0b"; // Amber 500
+  StatusIcon = <Clock size={10} />;
+  statusLabel = "กำลังดำเนินการ";
+}
   return (
     <motion.div
       variants={itemVariants}
@@ -78,46 +77,49 @@ function KpiCard({ item, index }) {
         </span>
       </div>
 
-      {/* Main Content */}
-      <div className="flex items-start gap-5 relative z-10">
-        <div className="flex-shrink-0">
-          {isMonitor && !hasValue ? (
-            <div className="w-[76px] h-[76px] rounded-full bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 group-hover:border-sky-200 group-hover:text-sky-400 transition-colors shadow-inner">
-              <Activity size={24} className="animate-pulse mb-1" />
-              <span className="text-[8px] font-black uppercase tracking-tighter">Active</span>
-            </div>
-          ) : (
-            <div className="drop-shadow-sm">
-              <Progress
-                type="circle"
-                percent={item.percent || 0}
-                size={76}
-                strokeWidth={10}
-                strokeColor={themeColor}
-                trailColor={`${themeColor}15`}
-                format={(p) => (
-                  <div className="flex flex-col items-center leading-none">
-                    <span className="text-[15px] font-black text-slate-800" style={{ color: isMonitor ? '#0369a1' : 'inherit' }}>
-                      {isMonitor && !hasValue ? "—" : `${p}%`}
-                    </span>
-                  </div>
-                )}
-              />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 pt-1">
-          <h3 className="text-sm font-bold text-slate-800 leading-snug line-clamp-3 group-hover:text-emerald-800 transition-colors">
-            {item.title}
-          </h3>
-          {isMonitor && (
-            <div className="mt-2 flex items-center gap-1.5">
-               <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-               <p className="text-[10px] text-sky-600 font-bold uppercase tracking-tight">รายการติดตามผลคืบหน้า</p>
-            </div>
-          )}
+     {/* Main Content */}
+<div className="flex items-start gap-5 relative z-10">
+  {isMonitor ? (
+    // ติดตาม → ไม่มีวงกลม แสดงชื่อใหญ่เลย
+    <div className="flex-1">
+      <h3 className="text-base font-black text-sky-700 leading-snug group-hover:text-sky-800 transition-colors">
+        {item.title}
+      </h3>
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+        <p className="text-[10px] text-sky-600 font-bold uppercase tracking-tight">รายการติดตามผลคืบหน้า</p>
+      </div>
+    </div>
+  ) : (
+    // KPI ปกติ → มีวงกลม + ชื่อข้างๆ
+    <>
+      <div className="flex-shrink-0">
+        <div className="drop-shadow-sm">
+          <Progress
+            type="circle"
+            percent={item.percent || 0}
+            size={76}
+            strokeWidth={10}
+            strokeColor={themeColor}
+            trailColor={`${themeColor}15`}
+            format={(p) => (
+              <div className="flex flex-col items-center leading-none">
+                <span className="text-[15px] font-black text-slate-800">
+                  {`${p}%`}
+                </span>
+              </div>
+            )}
+          />
         </div>
       </div>
+      <div className="flex-1 pt-1">
+        <h3 className="text-sm font-bold text-slate-800 leading-snug line-clamp-3 group-hover:text-emerald-800 transition-colors">
+          {item.title}
+        </h3>
+      </div>
+    </>
+  )}
+</div>
 
       {/* Footer Info */}
       <div className="flex items-center justify-between pt-4 border-t border-slate-100 relative z-10">
@@ -242,81 +244,35 @@ export default function DepartmentDetailPage() {
                 </div>
               </motion.div>
             </header>
+<div className="bg-gradient-to-br from-emerald-950/40 to-teal-900/20 backdrop-blur-md rounded-3xl border border-emerald-800/30 shadow-[0_8px_32px_rgba(0,0,0,0.2)] p-6">
+  <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+    <div className="lg:col-span-12">
+      <motion.div variants={itemVariants} className="flex items-center gap-5 mb-8 px-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+          <span className="text-[11px] font-black uppercase tracking-[0.4em] text-emerald-100">Live Matrix Stream</span>
+        </div>
+        <div className="h-px flex-1 bg-gradient-to-r from-emerald-700/50 to-transparent" />
+      </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-              
-              <div className="lg:col-span-8">
-                <motion.div variants={itemVariants} className="flex items-center gap-5 mb-8 px-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400">Live Matrix Stream</span>
-                  </div>
-                  <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent" />
-                </motion.div>
-
-                {hasData ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {topics.map((item, index) => (
-                      <KpiCard key={index} item={item} index={index} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-32 text-center bg-white/40 rounded-[4rem] border-4 border-dashed border-white shadow-xl flex flex-col items-center">
-                    <div className="w-24 h-24 bg-white/60 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                      <Inbox size={40} className="text-emerald-200" />
-                    </div>
-                    <h3 className="text-xl font-black text-emerald-900/40 uppercase tracking-widest">No Active Matrix Found</h3>
-                    <p className="text-slate-400 mt-2 font-medium">This unit is currently being configured.</p>
-                  </div>
-                )}
-              </div>
-
-              <aside className="lg:col-span-4">
-                <motion.div
-                  variants={itemVariants}
-                  className="sticky top-10 p-10 bg-[#022c22] rounded-[4rem] text-white shadow-[0_30px_60px_-15px_rgba(2,44,34,0.4)] overflow-hidden border border-white/5"
-                >
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/20 rounded-full blur-[60px]" />
-                  
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-10">
-                      <div className="p-2 bg-emerald-500/20 rounded-xl">
-                        <Activity size={18} className="text-emerald-400" />
-                      </div>
-                      <h3 className="text-xs font-black uppercase tracking-[0.5em] text-emerald-400">Intelligence</h3>
-                    </div>
-
-                    <p className="text-2xl font-bold leading-tight mb-8 text-emerald-50">
-                      "วิเคราะห์ข้อมูลเชิงลึกรายตัวชี้วัด เพื่อประเมินผลกลุ่มงานแบบ Real-time"
-                    </p>
-
-                    <p className="text-sm text-emerald-100/40 leading-relaxed mb-12 font-medium">
-                      ระบบประมวลผลประสิทธิภาพรายกลุ่มงาน ช่วยให้เห็นจุดที่ควรพัฒนาและจุดแข็งของการดำเนินงานในปัจจุบัน
-                    </p>
-
-                    <div className="space-y-4">
-                      <div className="p-7 bg-white/5 rounded-[2.5rem] border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-all cursor-default shadow-lg">
-                        <div className="flex items-center gap-5">
-                          <Globe2 size={24} className="text-emerald-400 group-hover:rotate-12 transition-transform" />
-                          <div>
-                            <span className="block text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-0.5">Network Status</span>
-                            <span className="text-xs font-bold text-white">Cloud Synchronized</span>
-                          </div>
-                        </div>
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_15px_#10b981]" />
-                      </div>
-
-                      <div className="p-7 bg-emerald-500 rounded-[2.5rem] text-emerald-950 flex items-center justify-between cursor-pointer hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)] hover:translate-y-[-4px] transition-all shadow-xl">
-                        <span className="text-xs font-black uppercase tracking-[0.2em]">Generate Unit Report</span>
-                        <div className="w-10 h-10 bg-emerald-900/20 rounded-full flex items-center justify-center">
-                           <ChevronRight size={20} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              </aside>
-            </div>
+      {hasData ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {topics.map((item, index) => (
+            <KpiCard key={index} item={item} index={index} />
+          ))}
+        </div>
+      ) : (
+        <div className="py-32 text-center bg-emerald-950/30 rounded-[4rem] border-4 border-dashed border-emerald-800/40 shadow-xl flex flex-col items-center">
+          <div className="w-24 h-24 bg-emerald-900/40 rounded-full flex items-center justify-center mb-6 shadow-inner">
+            <Inbox size={40} className="text-emerald-600" />
+          </div>
+          <h3 className="text-xl font-black text-emerald-300/50 uppercase tracking-widest">No Active Matrix Found</h3>
+          <p className="text-emerald-400/40 mt-2 font-medium">This unit is currently being configured.</p>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
           </div>
         </motion.div>
       </AnimatePresence>

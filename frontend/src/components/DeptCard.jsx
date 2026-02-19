@@ -20,13 +20,14 @@ export default function DeptCard({ dept, index }) {
       animate={{ opacity: 1, y: 0 }}
       whileHover={hasData ? { y: -4, scale: 1.01 } : {}}
       onClick={() => hasData && navigate(`/department/${dept.key}`)}
-      className={`relative border bg-white flex flex-col rounded-2xl overflow-hidden ${
+      className={`relative border flex flex-col rounded-2xl overflow-hidden h-full ${
         hasData 
-          ? "border-slate-300 hover:border-[#0d3b2e] hover:shadow-xl transition-all cursor-pointer" 
-          : "border-slate-200 bg-slate-100 opacity-60"
+          ? "bg-white border-slate-300 hover:border-[#0d3b2e] hover:shadow-xl transition-all cursor-pointer" 
+          : "bg-slate-100 border-slate-200 cursor-not-allowed"  
       }`}
     >
-      <div className="px-6 py-5 border-b border-slate-200 bg-[#0d3b2e] text-white">
+      {/* Header */}
+      <div className={`px-6 py-5 border-b border-slate-200 text-white ${hasData ? "bg-[#0d3b2e]" : "bg-slate-400"}`}>
         <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-4 flex-1">
             <div className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-white/10 border border-white/20 rounded-xl mt-1">
@@ -34,7 +35,8 @@ export default function DeptCard({ dept, index }) {
             </div>
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-widest text-white/60 mb-1">กลุ่มงาน</p>
-              <h3 className="text-base font-bold leading-snug break-words">
+              {/* ← min-h เพื่อให้ทุก card header สูงเท่ากัน */}
+              <h3 className="text-base font-bold leading-snug break-words min-h-[3rem]">
                 {dept.title.replace("กลุ่มงาน", "").trim()}
               </h3>
             </div>
@@ -48,32 +50,31 @@ export default function DeptCard({ dept, index }) {
         </div>
       </div>
 
-      {hasData && (
+      {/* Stats / Empty */}
+      {hasData ? (
         <div className="grid grid-cols-3 text-center divide-x divide-slate-200">
-          <StatBox 
-            count={targets.filter(k => k.status === "ผ่าน").length} 
-            label="ผ่าน" 
-            color="emerald" 
-            dot="bg-emerald-500" 
-          />
-          <StatBox 
-            count={targets.filter(k => k.status === "ไม่ผ่าน").length} 
-            label="รอดำเนินการ" 
-            color="amber" 
-            dot="bg-orange-400" 
-          />
-          <StatBox 
-            count={kpis.filter(k => getKpiType(k) === "monitoring").length} 
-            label="ติดตาม" 
-            color="sky" 
-            dot="bg-sky-400" 
-          />
+          <StatBox count={targets.filter(k => k.status === "ผ่าน").length} label="ผ่าน" color="emerald" dot="bg-emerald-500" />
+          <StatBox count={targets.filter(k => k.status === "ไม่ผ่าน").length} label="รอดำเนินการ" color="amber" dot="bg-orange-400" />
+          <StatBox count={kpis.filter(k => getKpiType(k) === "monitoring").length} label="ติดตาม" color="sky" dot="bg-sky-400" />
+        </div>
+      ) : (
+        <div className="flex items-center justify-center gap-2 py-5">
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+          <p className="text-[11px] uppercase tracking-widest text-slate-400 font-semibold">ยังไม่มีตัวชี้วัด</p>
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
         </div>
       )}
 
-      <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-        <span className="text-xs font-semibold tracking-widest text-slate-500 uppercase">Open Matrix</span>
-        <ChevronRight size={16} className="text-slate-400" />
+      {/* Footer */}
+      <div className={`mt-auto px-6 py-3 border-t border-slate-200 flex items-center justify-between ${
+        hasData ? "bg-slate-50" : "bg-slate-200"
+      }`}>
+        <span className={`text-xs font-semibold tracking-widest uppercase ${
+          hasData ? "text-slate-500" : "text-slate-400 line-through"
+        }`}>
+          Open Matrix
+        </span>
+        <ChevronRight size={16} className={hasData ? "text-slate-400" : "text-slate-300"} />
       </div>
     </motion.div>
   );
