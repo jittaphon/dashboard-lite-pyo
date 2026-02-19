@@ -1,384 +1,215 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Activity, ChevronRight, Target, BarChart3, TrendingUp,
-         CalendarDays, Eye, AlertTriangle, ShieldCheck, MapPin, Users, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom"; // 1. import useNavigate
+import { Activity, CalendarDays, LayoutDashboard, Search, ChevronDown, UserCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Select, ConfigProvider } from "antd";
 import useDepartmentStore from '../Store/useDepartmentStore';
 
-// ─── UTILS ────────────────────────────────────────────────────
-function getKpiType(kpi) {
-  if (!kpi.threshold || kpi.threshold === 0) return "monitoring";
-  return "target";
-}
+// Components
+import SummaryBar from '../components/SummaryBar';
+import DeptCard from '../components/DeptCard';
 
-function getStatusStyle(status, type) {
-  if (type === "monitoring")    return { bg:"bg-sky-50",     text:"text-sky-700",     dot:"bg-sky-400",     border:"border-sky-200"     };
-  if (status === "ผ่าน")       return { bg:"bg-emerald-50", text:"text-emerald-700", dot:"bg-emerald-500", border:"border-emerald-200" };
-  if (status === "ไม่ผ่าน")    return { bg:"bg-orange-50",  text:"text-orange-600",  dot:"bg-orange-400",  border:"border-orange-200"  };
-  return                               { bg:"bg-slate-50",   text:"text-slate-500",   dot:"bg-slate-300",   border:"border-slate-200"   };
-}
-
-// ─── ORGANIC SHAPES ───────────────────────────────────────────
-function OrgBlob({ className, style }) {
-  return (
-    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-      <path fill="currentColor" d="M47,-57.2C59.4,-46.2,67,-29.5,70.3,-11.5C73.7,6.6,72.8,26,63.5,40.1C54.2,54.2,36.5,63,17.8,67.5C-0.9,72,-20.6,72.3,-36.6,64.4C-52.6,56.5,-64.9,40.4,-70.3,22.4C-75.7,4.4,-74.2,-15.4,-65.2,-30.8C-56.2,-46.2,-39.7,-57.2,-23,-63.5C-6.3,-69.8,12.6,-71.4,29,-65.1C45.4,-58.8,59.4,-44.7,47,-57.2Z" transform="translate(100 100)" />
-    </svg>
-  );
-}
-
-function OrgBlob2({ className, style }) {
-  return (
-    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-      <path fill="currentColor" d="M38.5,-52.1C49.2,-41.6,56.7,-29.1,61.1,-14.8C65.5,-0.5,66.8,15.6,61.3,29.3C55.8,43,43.5,54.3,29.2,61.2C14.9,68.1,-1.4,70.6,-17.3,67C-33.2,63.4,-48.7,53.7,-57.8,40C-66.9,26.3,-69.6,8.6,-67.1,-8.5C-64.6,-25.6,-56.9,-42.1,-44.7,-52.5C-32.5,-62.9,-15.8,-67.2,-0.5,-66.6C14.8,-66,27.8,-62.6,38.5,-52.1Z" transform="translate(100 100)" />
-    </svg>
-  );
-}
-
-function OrgBlob3({ className, style }) {
-  return (
-    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-      <path fill="currentColor" d="M53.2,-64.9C67.4,-53.1,76.1,-35.3,77.2,-17.4C78.3,0.4,71.8,18.3,61.5,33C51.2,47.7,37.1,59.2,20.6,66.1C4.1,73,-14.7,75.2,-30.3,69C-45.9,62.8,-58.3,48.1,-65.4,31.3C-72.5,14.4,-74.3,-4.6,-68.8,-21.1C-63.4,-37.6,-50.7,-51.6,-36.2,-63.2C-21.7,-74.9,-5.4,-84.3,10.5,-82C26.3,-79.7,39,-76.7,53.2,-64.9Z" transform="translate(100 100)" />
-    </svg>
-  );
-}
-
-// ─── SUMMARY BAR ─────────────────────────────────────────────
-function SummaryBar({ departments }) {
-  const all        = departments.flatMap(d => d.topic || []);
-  const targets    = all.filter(k => getKpiType(k) === "target");
-  const passed     = targets.filter(k => k.status === "ผ่าน").length;
-  const inprogress = targets.filter(k => k.status === "ไม่ผ่าน").length;
-  const monitoring = all.filter(k => getKpiType(k) === "monitoring").length;
-  const pending    = targets.filter(k => k.status === "รอผล").length;
-
-  const stats = [
-    { label:"ทั้งหมด",         value: all.length,    Icon: BarChart3,     color:"text-slate-600",   bg:"bg-white",       border:"border-slate-200"   },
-    { label:"ผ่านเกณฑ์",       value: passed,        Icon: ShieldCheck,   color:"text-emerald-600", bg:"bg-emerald-50",  border:"border-emerald-200" },
-    { label:"ดำเนินการอยู่",   value: inprogress,    Icon: Clock,         color:"text-orange-600",  bg:"bg-orange-50",   border:"border-orange-200"  },
-    { label:"ติดตาม",          value: monitoring,    Icon: Eye,           color:"text-sky-600",     bg:"bg-sky-50",      border:"border-sky-200"     },
-    { label:"รอผล",            value: pending,       Icon: Target,        color:"text-amber-600",   bg:"bg-amber-50",    border:"border-amber-200"   },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
-      {stats.map((s) => (
-        <div key={s.label} className={`${s.bg} border ${s.border} rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm`}>
-          <s.Icon size={20} className={s.color} />
-          <div>
-            <div className={`text-2xl font-black leading-none ${s.color}`}>{s.value}</div>
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── KPI ROW ─────────────────────────────────────────────────
-function KpiRow({ kpi }) {
-  const type = getKpiType(kpi);
-  const s    = getStatusStyle(kpi.status, type);
-  const label = type === "monitoring" ? "ติดตาม"
-              : kpi.status === "ผ่าน"  ? `${kpi.percent?.toFixed(1) ?? "—"}%`
-              : kpi.status === "ไม่ผ่าน" ? "ดำเนินการอยู่"
-              : "—";
-
-  return (
-    <div className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${s.bg} border ${s.border}`}>
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
-      <span className="text-[11px] font-semibold text-slate-700 flex-1 leading-tight line-clamp-1">{kpi.title}</span>
-      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex-shrink-0 ${s.text}`}>{label}</span>
-    </div>
-  );
-}
-
-// ─── LEGEND ──────────────────────────────────────────────────
-function Legend() {
-  return (
-    <div className="flex flex-wrap items-center gap-4 mb-5">
-      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">คำอธิบาย:</span>
-      {[
-        { dot:"bg-emerald-500", label:"ผ่านเกณฑ์"           },
-        { dot:"bg-orange-400",  label:"ดำเนินการอยู่"        },
-        { dot:"bg-sky-400",     label:"ติดตาม (ไม่มีเกณฑ์)" },
-        { dot:"bg-slate-300",   label:"รอผล"                 },
-      ].map((l) => (
-        <div key={l.label} className="flex items-center gap-1.5">
-          <div className={`w-2.5 h-2.5 rounded-full ${l.dot}`} />
-          <span className="text-[10px] font-bold text-slate-500">{l.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── DEPT CARD (simplified) ───────────────────────────────────
-const ICONS = [Target, BarChart3, Activity, TrendingUp, Users, Eye, ShieldCheck, MapPin, BarChart3];
-
-function DeptCard({ dept, index }) {
-  const navigate = useNavigate();
-  const kpis = dept.topic || [];
-
-  const targets = kpis.filter(k => getKpiType(k) === "target");
-  const passed = targets.filter(k => k.status === "ผ่าน").length;
-  const inprogress = targets.filter(k => k.status === "ไม่ผ่าน").length;
-  const monitoring = kpis.filter(k => getKpiType(k) === "monitoring").length;
-
-  const hasData = kpis.length > 0;
-  const Icon = ICONS[index % ICONS.length];
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={hasData ? { y: -4, scale: 1.01 } : {}}
-      transition={{ duration: 0.25 }}
-      onClick={() => hasData && navigate(`/department/${dept.key}`)}
-      className={`
-        relative border bg-white flex flex-col rounded-2xl overflow-hidden
-        ${hasData
-          ? "border-slate-300 hover:border-[#0d3b2e] hover:shadow-xl transition-all cursor-pointer"
-          : "border-slate-200 bg-slate-100 opacity-60"}
-      `}
-    >
-     {/* HEADER */}
-<div className="px-6 py-5 border-b border-slate-200 bg-[#0d3b2e] text-white">
-  {/* ใช้ items-start เพื่อให้สัดส่วนไม่เพี้ยนเวลาพาดหัวยาว */}
-  <div className="flex items-start justify-between gap-6"> 
-    
-    {/* ส่วนชื่อกลุ่มงาน: เพิ่ม flex-1 เพื่อให้ขยายตามจริง */}
-    <div className="flex items-start gap-4 flex-1">
-      <div className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-white/10 border border-white/20 rounded-xl mt-1">
-        <Icon size={20} />
-      </div>
-
-      <div className="min-w-0"> {/* min-w-0 ช่วยเรื่อง text-wrap ใน flexbox */}
-        <p className="text-[10px] uppercase tracking-widest text-white/60 mb-1">
-          กลุ่มงาน
-        </p>
-        <h3 className="text-base font-bold leading-snug break-words">
-          {dept.title.replace("กลุ่มงาน", "").trim()}
-        </h3>
-      </div>
-    </div>
-
-    {/* ส่วน KPIs: ใช้ flex-shrink-0 เพื่อไม่ให้โดนชื่อกลุ่มงานเบียดจนผอม */}
-    <div className="text-right flex flex-col items-end gap-2 flex-shrink-0">
-      <div>
-        <p className="text-[10px] text-white/60 uppercase tracking-widest">
-          KPIs
-        </p>
-        <p className="text-2xl font-bold leading-none">
-          {kpis.length}
-        </p>
-      </div>
-
-      {hasData && (
-        <div className="flex items-center gap-1.5 mt-1">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span className="w-2 h-2 rounded-full bg-orange-400" />
-          <span className="w-2 h-2 rounded-full bg-sky-400" />
-          <span className="w-2 h-2 rounded-full bg-slate-300" />
-        </div>
-      )}
-    </div>
-  </div>
-</div>
-      {/* BODY */}
-      {hasData && (
-        <div className="grid grid-cols-3 text-center divide-x divide-slate-200">
-          
-          <div className="py-5 flex flex-col items-center gap-1">
-            <p className="text-lg font-bold text-emerald-700">{passed}</p>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <p className="text-[11px] uppercase tracking-wide text-slate-500">
-                ผ่าน
-              </p>
-            </div>
-          </div>
-
-          <div className="py-5 flex flex-col items-center gap-1">
-            <p className="text-lg font-bold text-amber-600">{inprogress}</p>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-orange-400" />
-              <p className="text-[11px] uppercase tracking-wide text-slate-500">
-                รอดำเนินการ
-              </p>
-            </div>
-          </div>
-
-          <div className="py-5 flex flex-col items-center gap-1">
-            <p className="text-lg font-bold text-sky-700">{monitoring}</p>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <p className="text-[11px] uppercase tracking-wide text-slate-500">
-                ติดตาม
-              </p>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* FOOTER */}
-      <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-        <span className="text-xs font-semibold tracking-widest text-slate-500">
-          OPEN MATRIX
-        </span>
-        <ChevronRight size={16} className="text-slate-400" />
-      </div>
-    </motion.div>
-  );
-}
-
-
-
-
-// ─── MAIN PAGE ────────────────────────────────────────────────
 export default function PhayaoHub() {
+  const navigate = useNavigate(); // 2. ประกาศตัวแปร navigate
   const { departments, fetchDepartments, isLoading } = useDepartmentStore();
   const [fiscalYear, setFiscalYear] = useState(2569);
 
-  useEffect(() => { fetchDepartments(fiscalYear); }, [fiscalYear, fetchDepartments]);
+  useEffect(() => { 
+    fetchDepartments(fiscalYear); 
+  }, [fiscalYear, fetchDepartments]);
 
   const sorted = useMemo(() =>
     [...departments].sort((a, b) => (b.topic?.length || 0) - (a.topic?.length || 0)),
     [departments]
   );
-return (
-  <ConfigProvider theme={{ token:{ colorPrimary:'#059669', borderRadius:12, fontFamily:'Kanit' } }}>
-    <div className="min-h-screen bg-[#f0f7f4] font-kanit relative overflow-x-hidden">
 
-      {/* ───────── DOT DEPTH BACKGROUND ───────── */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+  return (
+    <ConfigProvider 
+      theme={{ 
+        token: { 
+          colorPrimary: '#10b981', 
+          borderRadius: 20, 
+          fontFamily: 'Kanit',
+          colorBgContainer: '#064e3b',
+          colorText: '#ffffff',
+        },
+        components: {
+          Select: {
+            colorBgElevated: '#065f46',
+            colorTextOptionSelected: '#34d399',
+            controlHeight: 42,
+            optionSelectedBg: 'rgba(52, 211, 153, 0.1)'
+          }
+        }
+      }}
+    >
+      <div className="min-h-screen font-kanit relative overflow-x-hidden selection:bg-emerald-400/30 text-white pb-20">
+        
+        {/* 🟢 Background Layer */}
+        <div className="fixed inset-0 bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-900" />
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-5%] w-[50%] h-[50%] rounded-full bg-emerald-400/10 blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-teal-300/10 blur-[100px]" />
+        </div>
 
-        {/* small grid */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `radial-gradient(circle, rgba(13,92,58,0.25) 1px, transparent 1px)`,
-            backgroundSize: '26px 26px'
-          }}
-        />
-
-        {/* large soft grid */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `radial-gradient(circle, rgba(16,185,129,0.18) 2px, transparent 2px)`,
-            backgroundSize: '90px 90px',
-            filter: 'blur(1.2px)'
-          }}
-        />
-
-        {/* ambient glow */}
-        <motion.div
-          animate={{ y: [0, -30, 0] }}
-          transition={{ duration: 14, repeat: Infinity }}
-          className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-emerald-400/20 rounded-full blur-[140px]"
-        />
-
-        {/* fade bottom for depth */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/20 to-[#f0f7f4]" />
-      </div>
-      {/* ──────────────────────────────────────── */}
-
-      {/* ── NAVBAR ── */}
-      <header
-        className="sticky top-0 z-30 shadow-lg overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #0d5c3a 0%, #0e6b44 60%, #1a7a52 100%)" }}
-      >
-        <OrgBlob className="absolute -top-10 -right-10 w-52 h-52 opacity-10 text-white pointer-events-none" />
-        <OrgBlob2 className="absolute -bottom-14 left-10 w-44 h-44 opacity-[0.07] text-emerald-200 pointer-events-none" />
-
-        <div className="relative max-w-screen-xl mx-auto px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative w-11 h-11 flex items-center justify-center flex-shrink-0">
-              <OrgBlob className="absolute inset-0 w-full h-full text-emerald-400 opacity-30" />
-              <div className="w-9 h-9 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 relative z-10">
-                <Activity className="text-white" size={18} />
+        <div className="relative z-10 flex flex-col min-h-screen">
+          
+          {/* HEADER */}
+          <header className="px-4 sm:px-8 py-6">
+            <nav className="max-w-[1600px] mx-auto bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[2.5rem] px-8 py-4 flex items-center justify-between shadow-2xl">
+              <div className="flex items-center gap-5 cursor-pointer" onClick={() => navigate('/')}>
+                <div className="relative w-12 h-12 bg-gradient-to-tr from-emerald-400 to-teal-400 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                  <LayoutDashboard className="text-white" size={24} />
+                </div>
+                <div>
+                  <h1 className="text-xl font-black text-white tracking-tighter leading-none">
+                    PHAYAO <span className="text-emerald-300">DATA HUB</span>
+                  </h1>
+                  <p className="text-[9px] font-medium text-emerald-100/40 uppercase tracking-[0.3em] mt-1">Health Intelligence Unit</p>
+                </div>
               </div>
-            </div>
-            <div>
-              <h1 className="text-base font-black text-white leading-none tracking-tight drop-shadow">
-                ศูนย์ข้อมูลสุขภาพ <span className="text-emerald-200">จังหวัดพะเยา</span>
-              </h1>
-              <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.25em] mt-0.5">
-                Phayao Provincial Health Data Center
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping inline-block" />
-              <span className="text-[9px] font-black text-emerald-200 uppercase tracking-widest">Live</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2">
-              <CalendarDays size={13} className="text-white/60" />
-              <span className="text-[10px] font-bold text-white/60">ปีงบประมาณ</span>
-              <Select
-                defaultValue={2569}
-                variant="borderless"
-                size="small"
-                style={{ width: 90 }}
-                onChange={setFiscalYear}
-                options={[{ value:2569, label:<span className="font-black text-emerald-200 text-xs">2569</span> }]}
-              />
-            </div>
-          </div>
-        </div>
+              <div className="flex items-center gap-4">
+                <div className="hidden md:flex relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={16} />
+                  <input type="text" placeholder="Search data..." className="bg-white/5 border border-white/10 rounded-2xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400 w-64 transition-all" />
+                </div>
+                
+                {/* 🟢 Profile/Login Button -> Click to Admin Dashboard 
+                <button 
+                  onClick={() => navigate('/admin')} // 3. เพิ่ม onClick นำทางไปหน้า Admin
+                  className="relative p-2.5 bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/40 hover:to-teal-500/40 border border-white/20 rounded-xl transition-all duration-300 group shadow-lg active:scale-90"
+                  title="Admin Management"
+                >
+                  <UserCircle2 size={22} className="text-emerald-300 group-hover:text-white transition-colors" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-[#064e3b] rounded-full animate-pulse" />
+                </button>
+                */}
+              </div>
+            </nav>
+          </header>
 
-        <div className="w-full overflow-hidden leading-[0] -mb-px">
-          <svg viewBox="0 0 1440 40" preserveAspectRatio="none" className="w-full h-10">
-            <path d="M0,20 C200,40 400,0 600,20 C800,40 1000,5 1200,22 C1320,32 1400,18 1440,20 L1440,40 L0,40 Z" fill="#f0f7f4" />
-          </svg>
-        </div>
-      </header>
+          <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-8">
+            
+            {/* HERO & SUMMARY */}
+            <section className="px-6 py-12">
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-center">
+                <div className="xl:col-span-5">
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest mb-6 border border-emerald-500/30">
+                      <Activity size={12} className="animate-pulse" /> Live Metrics
+                    </div>
+                    
+                    <h2 className="text-5xl font-black tracking-tight leading-[1.1] mb-8">
+                      ระบบติดตาม <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-teal-100 to-white">
+                        ตัวชี้วัดสุขภาพ จังหวัดพะเยา
+                      </span>
+                    </h2>
 
-      {/* ── BODY ── */}
-      <main className="max-w-screen-xl mx-auto px-8 py-8 relative z-10">
+                    <div className="flex flex-wrap items-center gap-4">
+                      {/* SELECT YEAR */}
+                      <div className="flex items-center gap-4 bg-black/30 backdrop-blur-xl border border-white/10 p-2 rounded-[1.5rem] shadow-inner">
+                        <div className="flex items-center gap-3 px-4 py-2 bg-emerald-500/20 rounded-xl border border-emerald-400/20">
+                          <CalendarDays size={18} className="text-emerald-300" />
+                          <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">ปีงบ</span>
+                        </div>
+                        <Select
+                          defaultValue={2569}
+                          variant="borderless"
+                          suffixIcon={<ChevronDown size={16} className="text-emerald-400" />}
+                          className="min-w-[100px] font-black text-lg"
+                          onChange={setFiscalYear}
+                          options={[
+                            { value: 2569, label: <span className="text-white text-lg font-black">2569</span> },
+                          ]}
+                        />
+                      </div>
 
-        <OrgBlob className="absolute top-[-60px] right-[-80px] w-[380px] h-[380px] text-emerald-300 opacity-25 pointer-events-none" />
-        <OrgBlob2 className="absolute top-[300px] left-[-100px] w-[320px] h-[320px] text-teal-300 opacity-20 pointer-events-none" />
-        <OrgBlob3 className="absolute bottom-[100px] right-[-60px] w-[280px] h-[280px] text-emerald-200 opacity-20 pointer-events-none" />
+                      {/* Legend Status */}
+                      <div className="flex items-center gap-6 bg-black/20 backdrop-blur-xl border border-white/5 px-6 py-3 rounded-2xl shadow-xl">
+                        <div className="flex items-center gap-2.5 group">
+                          <div className="relative">
+                            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-40" />
+                          </div>
+                          <span className="text-[11px] font-black text-emerald-300 uppercase tracking-[0.15em]">ผ่าน</span>
+                        </div>
+                        <div className="w-[1px] h-4 bg-white/10" />
+                        <div className="flex items-center gap-2.5 group">
+                          <div className="relative">
+                            <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                            <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse opacity-50" />
+                          </div>
+                          <span className="text-[11px] font-black text-orange-400 uppercase tracking-[0.15em]">รอดำเนินการ</span>
+                        </div>
+                        <div className="w-[1px] h-4 bg-white/10" />
+                        <div className="flex items-center gap-2.5 group">
+                          <div className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                          <span className="text-[11px] font-black text-sky-300 uppercase tracking-[0.15em]">ติดตาม</span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
 
-        <div className="relative z-10">
-          <div className="mb-6">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1">
-              <TrendingUp size={12} /> ภาพรวมตัวชี้วัด · ปีงบประมาณ {fiscalYear}
-            </p>
-            <h2 className="text-2xl font-black text-slate-800">
-              ติดตามตัวชี้วัด <span className="text-[#0d5c3a]">กลุ่มงาน</span>
-            </h2>
-          </div>
+                <div className="xl:col-span-7">
+                  {!isLoading && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+                       <SummaryBar departments={departments} />
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </section>
 
-          {!isLoading && <SummaryBar departments={departments} />}
-          {!isLoading && <Legend />}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            <AnimatePresence mode="popLayout">
-              {isLoading
-                ? <div className="col-span-full py-24 flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-base font-bold text-slate-400">กำลังโหลดข้อมูล...</p>
+            {/* Card List Section */}
+            <section className="relative p-8 sm:p-12 rounded-[4rem] bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between mb-12 px-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-1 h-8 bg-emerald-400 rounded-full" />
+                    <h3 className="text-xs font-black uppercase tracking-[0.4em] text-emerald-300/80">
+                      Department Matrix Overview
+                    </h3>
                   </div>
-                : sorted.map((dept, i) => <DeptCard key={dept.id} dept={dept} index={i} />)
-              }
-            </AnimatePresence>
-          </div>
+                  <div className="hidden sm:block text-[10px] font-bold text-white/20 uppercase tracking-widest text-nowrap">
+                    Total {sorted.length} Units
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8">
+                  <AnimatePresence mode="popLayout">
+                    {isLoading ? (
+                      <LoadingState />
+                    ) : (
+                      sorted.map((dept, i) => (
+                        <motion.div
+                          key={dept.id || i}
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                        >
+                          {/* 4. ใน DeptCard ตรวจสอบว่ามี onClick ภายในนั้นเพื่อไปหน้า /department/:id หรือไม่ */}
+                          <DeptCard dept={dept} index={i} />
+                        </motion.div>
+                      ))
+                    )}
+                  </AnimatePresence>
+                </div>
+            </section>
+            
+          </main>
         </div>
-      </main>
+      </div>
+    </ConfigProvider>
+  );
+}
 
-      <style global jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;900&display=swap');
-      `}</style>
+function LoadingState() {
+  return (
+    <div className="col-span-full py-40 flex flex-col items-center justify-center">
+      <div className="w-14 h-14 border-4 border-emerald-400/10 border-t-emerald-400 rounded-full animate-spin" />
+      <p className="mt-6 font-bold text-emerald-400/40 uppercase text-[10px] tracking-[0.3em]">Processing Matrix...</p>
     </div>
-  </ConfigProvider>
-);
-
+  );
 }

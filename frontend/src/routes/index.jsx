@@ -8,7 +8,7 @@ import DepartmentDetailPage from "../View/DepartmentDetailPage";
 import TopicDetailPage from "../View/TopicDetailPage";
 import ModelPage from "../View/ModelPage";
 import { Hammer } from "lucide-react"; // นำเข้า Icon ค้อนสำหรับหน้าปรับปรุง
-
+import  AdminDashboard from "../View/Admin"; // นำเข้า ModelPage สำหรับหน้าปรับปรุง
 
 
 
@@ -33,6 +33,10 @@ export const routes = createHashRouter([
         path: "model", // เพิ่ม path นี้
         element: <ModelPage /> 
       },
+      {
+        path: "admin", // เพิ่ม path นี้
+        element: <AdminDashboard /> // ใช้ AdminDashboard เป็น component สำหรับหน้าปรับปรุง
+      }
     ],
   },
 ]);

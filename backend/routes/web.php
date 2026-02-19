@@ -19,13 +19,19 @@ $router->group([
     'middleware' => 'throttle:10000,1' 
 ], function () use ($router) {
 
-    // ยุบเหลือชั้นเดียว ไม่ต้องซ้อน api/v1 อีกรอบ
     $router->group(['prefix' => 'kpi'], function () use ($router) {
         
-      $router->get('groups-kpi/{year}', 'KpiController@getGroupsKpiByYear');
-        
-      $router->get('ncd-kpi-department/{year}', 'KpiController@getNcdKpiDeparment');
+       // ข้อมูลหลัก
+        $router->get('groups-kpi/{year}', 'KpiController@getGroupsKpiByYear');
+        $router->get('ncd-kpi-department/{year}', 'KpiController@getNcdKpiDeparment');
 
+        // จัดการ KPI
+        $router->post('save', 'KpiController@saveKpi');
+        $router->delete('{id}', 'KpiController@deleteKpi');
+
+        // จัดการกลุ่มงาน
+        $router->post('group/save', 'KpiController@saveGroup');
+        $router->delete('group/{id}', 'KpiController@deleteGroup');
     });
 });
 
