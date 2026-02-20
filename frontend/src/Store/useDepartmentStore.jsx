@@ -44,6 +44,7 @@ function buildNCDMap(ncdList) {
         result: total_result
       };
     }
+    
   });
   return map;
 }
@@ -124,8 +125,6 @@ const useDepartmentStore = create((set, get) => ({
       const ncdList = await ncdRes.json();
 
 
-      console.log("Raw Master Data:", rows);
-      console.log("Raw NCD Data:", ncdList);
       // รวบรวม Performance Data จากแหล่งต่างๆ (ในอนาคตเพิ่มตรงนี้)
       const performanceMap = {
         ...buildNCDMap(ncdList),
