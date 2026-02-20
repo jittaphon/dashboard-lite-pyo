@@ -12,16 +12,19 @@ import {
   Trash2,
   Clock,
   AlertCircle,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Database,
+  Grid,
+  Activity
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Select, ConfigProvider, Modal, InputNumber, message, Input, App } from "antd";
+import { ConfigProvider, Modal, InputNumber, message, Input } from "antd";
 import { useNavigate } from "react-router-dom";
 import useDepartmentStore from '../Store/useDepartmentStore';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [modal, contextHolder] = Modal.useModal(); // ใช้ Hook แทน Static Function
+  const [modal, contextHolder] = Modal.useModal();
   
   const { 
     departments, 
@@ -52,24 +55,23 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteKpi = (kpiId, tempKey) => {
-    modal.confirm({ // เรียกผ่าน instance จาก hook
-      title: <span className="text-white font-kanit">ยืนยันการลบตัวชี้วัด?</span>,
-      content: <span className="text-white/60 font-kanit">ข้อมูลจะถูกลบออกจากระบบถาวร ไม่สามารถย้อนกลับได้</span>,
-      okText: 'ยืนยันการลบ',
+    modal.confirm({
+      title: <span className="font-semibold text-gray-900">ยืนยันการลบรายการ?</span>,
+      content: <span className="text-gray-500 text-sm">ข้อมูลตัวชี้วัดนี้จะถูกลบออกถาวร</span>,
+      okText: 'ลบทิ้ง',
       okType: 'danger',
       cancelText: 'ยกเลิก',
       centered: true,
-      className: 'admin-confirm-modal',
       onOk: async () => {
         try {
           if (kpiId) {
             await deleteKpiAction(kpiId);
-            message.success('ลบข้อมูลจากระบบสำเร็จ');
+            message.success('ลบข้อมูลเรียบร้อย');
           }
           setCurrentKpis(prev => prev.filter(k => k.tempKey !== tempKey));
           fetchDepartments(fiscalYear, true);
         } catch (error) {
-          message.error('ไม่สามารถลบข้อมูลได้: ' + error.message);
+          message.error('เกิดข้อผิดพลาด: ' + error.message);
         }
       }
     });
@@ -77,11 +79,9 @@ export default function AdminDashboard() {
 
   const handleSaveAllKpis = async () => {
     const hasEmpty = currentKpis.some(k => !k.key || !k.title);
-    if (hasEmpty) {
-      return message.warning('กรุณาระบุ "รหัส" และ "ชื่อตัวชี้วัด" ให้ครบทุกแถว');
-    }
+    if (hasEmpty) return message.warning('กรุณากรอกข้อมูลให้ครบถ้วน');
 
-    const hide = message.loading('กำลังจัดเก็บข้อมูลลงฐานข้อมูล...', 0);
+    const hide = message.loading('กำลังบันทึกข้อมูล...', 0);
     try {
       await Promise.all(currentKpis.map(kpi => 
         saveKpiAction({
@@ -95,11 +95,11 @@ export default function AdminDashboard() {
           report_url: kpi.url || ''
         })
       ));
-      message.success('ปรับปรุงข้อมูลเรียบร้อยแล้ว');
+      message.success('อัปเดตฐานข้อมูลสำเร็จ');
       setIsEditModalOpen(false);
       fetchDepartments(fiscalYear, true);
     } catch (error) {
-      message.error('การบันทึกล้มเหลว: ' + error.message);
+      message.error('ล้มเหลว: ' + error.message);
     } finally {
       hide();
     }
@@ -119,123 +119,126 @@ export default function AdminDashboard() {
   return (
     <ConfigProvider 
       theme={{ 
-        token: { colorPrimary: '#10b981', fontFamily: 'Kanit', borderRadius: 16 },
+        token: { colorPrimary: '#007e70', borderRadius: 12, fontFamily: 'Kanit, -apple-system, sans-serif' },
         components: { 
-          Select: { colorBgContainer: 'rgba(255,255,255,0.05)', colorText: '#fff', colorTextPlaceholder: 'rgba(255,255,255,0.3)' },
-          Modal: { colorBgElevated: '#064e3b', colorTextHeading: '#fff', colorIcon: '#fff' },
-          Input: { colorBgContainer: 'rgba(0,0,0,0.2)', colorText: '#fff', colorBorder: 'rgba(255,255,255,0.1)', colorPlaceholder: 'rgba(255,255,255,0.3)' },
-          InputNumber: { colorBgContainer: 'rgba(0,0,0,0.2)', colorText: '#fff', colorBorder: 'rgba(255,255,255,0.1)' }
+          Modal: { colorBgElevated: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)' },
+          Input: { colorBgContainer: '#f5f5f7', borderRadius: 10 }
         }
       }}
     >
-      {/* contextHolder คือตัวที่จะทำให้ Modal มองเห็น Theme */}
       {contextHolder}
       
-      <div className="min-h-screen bg-gradient-to-br from-emerald-600/95 to-teal-600/95 font-kanit text-white">
-        <nav className="sticky top-0 z-50 bg-emerald-900/40 backdrop-blur-2xl border-b border-white/10 px-6 py-4">
-          <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+      <div className="min-h-screen bg-[#fbfbfd] text-[#1d1d1f] font-sans selection:bg-[#007e70]/20">
+        {/* Apple Style Glass Nav */}
+        <nav className="sticky top-0 z-50 bg-[#fbfbfd]/70 backdrop-blur-xl border-b border-gray-200/40 px-6 py-4">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between">
             <div className="flex items-center gap-6">
-              <button onClick={() => navigate('/')} className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all">
-                <ArrowLeft size={20} />
+              <button 
+                onClick={() => navigate('/')} 
+                className="group flex items-center gap-2 text-gray-500 hover:text-[#007e70] transition-colors font-medium text-sm"
+              >
+                <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                Back
               </button>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-400 rounded-xl flex items-center justify-center shadow-lg">
-                  <Settings size={22} className="text-emerald-900" />
+              <div className="flex items-center gap-3 border-l pl-6 border-gray-200">
+                <div className="w-9 h-9 bg-[#007e70] rounded-xl flex items-center justify-center shadow-lg shadow-[#007e70]/20">
+                  <Activity size={20} className="text-white" />
                 </div>
-                <div className="flex flex-col leading-none">
-                   <h1 className="text-xl font-black uppercase tracking-tight">Admin <span className="text-emerald-300">Console</span></h1>
-                   <span className="text-[10px] text-emerald-400/60 font-bold uppercase tracking-widest">Master Management</span>
-                </div>
+                <h1 className="text-lg font-bold tracking-tight">Health Registry</h1>
               </div>
             </div>
-            <div className="flex items-center gap-4 bg-black/20 px-5 py-2 rounded-2xl border border-white/10 text-emerald-300 font-black">
-                ปีงบประมาณ 
-                <Select 
-                 value={fiscalYear} 
-                 variant="borderless" 
-                 onChange={setFiscalYear} 
-                 options={[{ value: 2569, label: '2569' }, { value: 2568, label: '2568' }]} 
-                 className="w-24" 
-                />
+
+            <div className="flex bg-gray-200/50 p-1 rounded-xl">
+              {[2568, 2569].map(year => (
+                <button 
+                  key={year}
+                  onClick={() => setFiscalYear(year)}
+                  className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-all ${fiscalYear === year ? 'bg-white shadow-sm text-[#007e70]' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  FY {year}
+                </button>
+              ))}
             </div>
           </div>
         </nav>
 
-        <main className="max-w-[1600px] mx-auto p-6 lg:p-10">
-          <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
-            <div>
-               <h2 className="text-5xl font-black tracking-tighter italic uppercase leading-none">Master Registry</h2>
-               <p className="text-white/60 font-medium mt-2">จัดการกลุ่มงานและตั้งค่าเกณฑ์เป้าหมายรายตัวชี้วัดสำคัญ</p>
-            </div>
-            <button className="px-8 py-4 bg-white text-emerald-900 rounded-3xl font-black text-sm flex items-center gap-2 hover:bg-emerald-100 transition-all active:scale-95 shadow-xl">
-              <Plus size={18} strokeWidth={3} /> เพิ่มกลุ่มงานใหม่
-            </button>
-          </header>
-
-          {/* Stats Cards Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            <AdminStatCard label="กลุ่มงานทั้งหมด" value={stats.totalDepts} icon={Users} color="emerald" />
-            <AdminStatCard label="ตัวชี้วัดรวม" value={stats.totalKpis} icon={FileText} color="sky" />
-            <AdminStatCard label="รอการรายงาน" value={stats.pending} icon={Clock} color="orange" />
-            <AdminStatCard label="วิกฤต/ตกเกณฑ์" value={stats.critical} icon={AlertCircle} color="rose" />
+        <main className="max-w-[1400px] mx-auto p-8 lg:p-12">
+          {/* Bento Header */}
+          <div className="grid grid-cols-12 gap-6 mb-12">
+             <div className="col-span-12 lg:col-span-7 flex flex-col justify-center">
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                  <span className="text-[#007e70] font-bold text-xs uppercase tracking-widest mb-2 block">Administration Console</span>
+                  <h2 className="text-6xl font-black tracking-tighter mb-4 text-[#1d1d1f]">Console.</h2>
+                  <p className="text-xl text-gray-400 max-w-lg leading-snug font-medium">จัดการโครงสร้างตัวชี้วัดและค่าเป้าหมาย <br/>ของหน่วยงานในสังกัดสาธารณสุข</p>
+                </motion.div>
+             </div>
+             <div className="col-span-12 lg:col-span-5 grid grid-cols-2 gap-4">
+                <HealthStat label="หน่วยงาน" value={stats.totalDepts} icon={Users} color="#007e70" />
+                <HealthStat label="ตัวชี้วัดทั้งหมด" value={stats.totalKpis} icon={FileText} color="#0066cc" />
+                <HealthStat label="รอรายงาน" value={stats.pending} icon={Clock} color="#ff9500" />
+                <HealthStat label="ไม่ผ่านเกณฑ์" value={stats.critical} icon={AlertCircle} color="#ff3b30" />
+             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl">
-            <div className="px-8 py-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/[0.02]">
-               <h3 className="font-black text-emerald-300 uppercase tracking-widest text-sm flex items-center gap-2">
-                 <div className="w-1.5 h-4 bg-emerald-400 rounded-full animate-pulse" /> รายชื่อกลุ่มงานรับผิดชอบ
-               </h3>
-               <div className="relative w-full md:w-auto">
-                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
-                 <input 
+          {/* Search Bar & Action */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+             <div className="relative w-full md:w-[450px]">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input 
                   type="text" 
-                  placeholder="ค้นหากลุ่มงาน..." 
+                  placeholder="ค้นหาชื่อกลุ่มงาน..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-black/30 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm w-full md:w-80 focus:ring-2 focus:ring-emerald-400 outline-none transition-all placeholder:text-white/20" 
-                 />
-               </div>
-            </div>
+                  className="w-full bg-white border-none rounded-2xl py-4 pl-12 pr-6 text-[16px] shadow-sm outline-none focus:ring-4 focus:ring-[#007e70]/10 transition-all placeholder:text-gray-300"
+                />
+             </div>
+             <button className="w-full md:w-auto px-8 py-4 bg-[#1d1d1f] text-white rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-[#007e70] transition-all shadow-xl active:scale-95">
+                <Plus size={20} /> เพิ่มกลุ่มงาน
+             </button>
+          </div>
 
-            <div className="overflow-x-auto min-h-[400px]">
+          {/* Clean Table Card */}
+          <div className="bg-white rounded-[32px] shadow-[0_20px_60px_rgba(0,0,0,0.03)] border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-24 gap-4">
-                  <div className="w-12 h-12 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-white/40 uppercase tracking-[0.3em] text-[10px] font-black">กำลังเชื่อมต่อฐานข้อมูล...</p>
+                <div className="py-40 flex flex-col items-center justify-center gap-4">
+                  <div className="w-8 h-8 border-4 border-gray-100 border-t-[#007e70] rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Registry</p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
+                <table className="w-full border-collapse">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-widest text-white/30 bg-white/[0.01]">
-                      <th className="px-8 py-5">กลุ่มงาน (Department)</th>
-                      <th className="px-8 py-5 text-center">KPIs</th>
-                      <th className="px-8 py-5">สถานะปี {fiscalYear}</th>
-                      <th className="px-8 py-5 text-right">Action</th>
+                    <tr className="bg-[#f5f5f7]/50 text-[11px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                      <th className="px-10 py-5 text-left">Department Details</th>
+                      <th className="px-6 py-5 text-center">KPIs</th>
+                      <th className="px-6 py-5 text-center">Status</th>
+                      <th className="px-10 py-5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 font-kanit">
+                  <tbody className="divide-y divide-gray-50">
                     {filteredDepts.map((dept) => (
-                      <tr key={`dept-${dept.id}`} className="hover:bg-white/[0.03] transition-colors group">
-                        <td className="px-8 py-6">
-                            <div className="font-black text-white uppercase text-base tracking-tight">{dept.title}</div>
-                            <div className="text-[10px] text-white/30 font-bold uppercase mt-1">ID: {dept.id}</div>
+                      <tr key={dept.id} className="group hover:bg-[#007e70]/[0.02] transition-colors">
+                        <td className="px-10 py-7">
+                          <div className="font-bold text-[19px] text-[#1d1d1f] group-hover:text-[#007e70] transition-colors">{dept.title}</div>
+                          <div className="text-[12px] text-gray-400 font-bold mt-1">ID: {dept.id}</div>
                         </td>
-                        <td className="px-8 py-6 text-center">
-                          <span className="bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-xl font-black text-sm border border-emerald-500/20 shadow-inner">
+                        <td className="px-6 py-7 text-center">
+                          <span className="inline-flex items-center justify-center bg-gray-100 w-10 h-10 rounded-full font-bold text-sm">
                             {dept.topic?.length || 0}
                           </span>
                         </td>
-                        <td className="px-8 py-6">
-                          <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase border shadow-sm ${dept.topic?.every(t => t.status === "ผ่าน") ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
-                             {dept.topic?.every(t => t.status === "ผ่าน") ? '● All Passed' : '○ In Progress'}
-                          </span>
+                        <td className="px-6 py-7 text-center">
+                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-bold ${dept.topic?.every(t => t.status === "ผ่าน") ? 'bg-[#007e70]/10 text-[#007e70]' : 'bg-orange-100 text-orange-600'}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${dept.topic?.every(t => t.status === "ผ่าน") ? 'bg-[#007e70]' : 'bg-orange-600'}`} />
+                            {dept.topic?.every(t => t.status === "ผ่าน") ? 'VERIFIED' : 'PENDING'}
+                          </div>
                         </td>
-                        <td className="px-8 py-6 text-right">
+                        <td className="px-10 py-7 text-right">
                           <button 
                             onClick={() => handleOpenEdit(dept)}
-                            className="px-6 py-3 bg-emerald-400 hover:bg-white text-emerald-950 text-[11px] font-black uppercase rounded-2xl transition-all flex items-center gap-2 ml-auto shadow-lg hover:-translate-y-0.5"
+                            className="bg-[#f5f5f7] p-3 rounded-xl text-gray-400 hover:text-[#007e70] hover:bg-[#007e70]/10 transition-all active:scale-90"
                           >
-                            <Edit3 size={14} /> ตั้งค่า KPI
+                            <Settings size={20} />
                           </button>
                         </td>
                       </tr>
@@ -249,129 +252,124 @@ export default function AdminDashboard() {
 
         <Modal
           title={
-            <div className="flex items-center gap-3 text-white font-black py-2">
-              <div className="p-2 bg-emerald-400/20 rounded-lg"><Edit3 size={20} className="text-emerald-400"/></div>
+            <div className="flex items-center gap-4 py-2">
+              <div className="w-12 h-12 bg-[#007e70]/10 rounded-2xl flex items-center justify-center text-[#007e70]">
+                <Grid size={24} />
+              </div>
               <div>
-                <div className="text-lg leading-none uppercase italic">Manage Indicators</div>
-                <div className="text-xs text-emerald-300/60 font-bold mt-1 uppercase tracking-widest">{selectedDept?.title}</div>
+                <h4 className="text-xl font-bold leading-none">{selectedDept?.title}</h4>
+                <p className="text-xs font-bold text-gray-400 uppercase mt-1 tracking-wider">Indicator Configuration</p>
               </div>
             </div>
           }
           open={isEditModalOpen}
           onCancel={() => setIsEditModalOpen(false)}
-          width={1200}
+          width={1000}
           footer={[
-            <button key="btn-cancel" onClick={() => setIsEditModalOpen(false)} className="px-6 py-2 text-white/40 font-bold hover:text-white transition-colors uppercase text-[11px] tracking-widest">Discard Changes</button>,
-            <button key="btn-save" onClick={handleSaveAllKpis} className="px-10 py-4 bg-emerald-400 text-emerald-950 font-black rounded-2xl hover:bg-white transition-all uppercase text-[11px] shadow-2xl ml-4 flex items-center gap-3 inline-flex">
-              <Save size={18} /> Update Database
-            </button>
+            <div key="footer" className="flex justify-between items-center px-6 py-4 bg-[#f5f5f7]/50 rounded-b-[32px]">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter">System Version 3.0.4 - 2026</span>
+              <div className="flex gap-3">
+                <button key="c" onClick={() => setIsEditModalOpen(false)} className="px-6 py-2.5 text-sm font-bold text-gray-400 hover:text-black transition-colors">Close</button>
+                <button key="s" onClick={handleSaveAllKpis} className="px-8 py-2.5 bg-[#007e70] text-white text-sm font-bold rounded-xl shadow-lg shadow-[#007e70]/20 hover:opacity-90 transition-all flex items-center gap-2">
+                  <Save size={18} /> Update Registry
+                </button>
+              </div>
+            </div>
           ]}
           centered
-          className="admin-modal"
-          closeIcon={<X className="text-white/40 hover:text-white" />}
+          className="apple-health-modal"
+          closeIcon={<X className="text-gray-300 hover:text-black transition-colors" />}
         >
-          <div className="py-6 max-h-[65vh] overflow-y-auto pr-3 custom-scrollbar">
-            <div className="grid grid-cols-12 gap-5 mb-4 px-6 text-[10px] font-black text-emerald-400/40 uppercase tracking-[0.2em]">
-                <div className="col-span-2">Indicator Code</div>
-                <div className="col-span-4">Metric Details & Report Link</div>
-                <div className="col-span-2 text-center">Threshold (%)</div>
-                <div className="col-span-2 text-center">Weight</div>
-                <div className="col-span-2 text-right">Action</div>
-            </div>
-            
+          <div className="py-6 max-h-[60vh] overflow-y-auto px-4 apple-scrollbar">
             <AnimatePresence>
               {currentKpis.map((kpi, index) => (
                 <motion.div 
-                  key={kpi.tempKey} 
-                  initial={{ opacity: 0, y: 10 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="grid grid-cols-12 gap-5 items-center bg-black/30 p-6 rounded-[2rem] border border-white/5 mb-4 group hover:border-emerald-500/40 transition-all shadow-xl relative overflow-hidden"
+                  key={kpi.tempKey}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white border border-gray-100 rounded-[24px] p-6 mb-5 relative group"
                 >
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/20 group-hover:bg-emerald-400 transition-colors" />
-                  <div className="col-span-2">
-                    <Input 
-                      placeholder="e.g. NCD_001" 
-                      value={kpi.key}
-                      className="font-mono text-xs font-black uppercase text-emerald-400"
-                      onChange={(e) => {
-                        const next = [...currentKpis];
-                        next[index].key = e.target.value.toUpperCase();
-                        setCurrentKpis(next);
-                      }}
-                    />
-                  </div>
-                  <div className="col-span-4 flex flex-col gap-3">
-                    <Input 
-                      placeholder="ชื่อตัวชี้วัด" 
-                      value={kpi.title}
-                      className="font-bold text-sm"
-                      onChange={(e) => {
-                        const next = [...currentKpis];
-                        next[index].title = e.target.value;
-                        setCurrentKpis(next);
-                      }}
-                    />
-                    <div className="flex items-center gap-3 bg-black/40 rounded-xl px-3 border border-white/5 group/link">
-                      <LinkIcon size={14} className="text-white/20 group-hover/link:text-emerald-400 transition-colors" />
-                      <Input 
-                        placeholder="Dashboard URL" 
-                        value={kpi.url}
-                        variant="borderless"
-                        className="text-[10px] py-2 font-mono"
-                        onChange={(e) => {
-                          const next = [...currentKpis];
-                          next[index].url = e.target.value;
-                          setCurrentKpis(next);
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-span-2 flex justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                        <InputNumber 
-                          min={0} max={100} 
-                          value={kpi.threshold} 
-                          className="w-24 ant-input-big"
-                          onChange={(val) => {
+                  <div className="grid grid-cols-12 gap-6 items-end">
+                    <div className="col-span-12 md:col-span-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">KPI Code</label>
+                        <Input 
+                          placeholder="CODE" 
+                          value={kpi.key}
+                          className="!bg-[#f5f5f7] !border-none font-bold uppercase text-[#007e70]"
+                          onChange={(e) => {
                             const next = [...currentKpis];
-                            next[index].threshold = val;
+                            next[index].key = e.target.value.toUpperCase();
                             setCurrentKpis(next);
                           }}
                         />
-                        <span className="text-[9px] font-black text-white/20 uppercase">Percent</span>
                     </div>
-                  </div>
-                  <div className="col-span-2 flex justify-center">
-                     <div className="flex flex-col items-center gap-2">
+                    <div className="col-span-12 md:col-span-6">
+                        <div className="flex justify-between mb-2">
+                           <label className="text-[10px] font-black text-gray-400 uppercase block">Performance Description</label>
+                        </div>
+                        <Input 
+                          placeholder="ชื่อตัวชี้วัด..." 
+                          value={kpi.title}
+                          className="!bg-[#f5f5f7] !border-none font-bold text-[15px] mb-3"
+                          onChange={(e) => {
+                            const next = [...currentKpis];
+                            next[index].title = e.target.value;
+                            setCurrentKpis(next);
+                          }}
+                        />
+                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg">
+                           <LinkIcon size={12} className="text-gray-300" />
+                           <Input 
+                            placeholder="Data Source URL" 
+                            value={kpi.url}
+                            variant="borderless"
+                            className="text-[11px] font-medium text-blue-500"
+                            onChange={(e) => {
+                              const next = [...currentKpis];
+                              next[index].url = e.target.value;
+                              setCurrentKpis(next);
+                            }}
+                           />
+                        </div>
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Goal (%)</label>
+                        <div className="bg-[#f5f5f7] rounded-xl flex items-center px-4">
+                          <InputNumber 
+                            min={0} max={100} value={kpi.threshold} 
+                            className="!bg-transparent !border-none apple-num-input w-full"
+                            onChange={(val) => {
+                              const next = [...currentKpis];
+                              next[index].threshold = val;
+                              setCurrentKpis(next);
+                            }}
+                          />
+                        </div>
+                    </div>
+                    <div className="col-span-4 md:col-span-1">
+                        <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Weight</label>
                         <InputNumber 
-                          min={1} max={10} 
-                          value={kpi.weight} 
-                          className="w-20 ant-input-big"
+                          min={1} max={10} value={kpi.weight} 
+                          className="!bg-[#f5f5f7] !border-none apple-num-input w-full rounded-xl"
                           onChange={(val) => {
                             const next = [...currentKpis];
                             next[index].weight = val;
                             setCurrentKpis(next);
                           }}
                         />
-                        <span className="text-[9px] font-black text-white/20 uppercase">Multiplier</span>
                     </div>
-                  </div>
-                  <div className="col-span-2 flex justify-end">
-                     <button 
-                      type="button"
-                      onClick={() => handleDeleteKpi(kpi.id, kpi.tempKey)}
-                      className="p-4 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white rounded-2xl transition-all shadow-lg active:scale-90"
-                     >
-                        <Trash2 size={20}/>
-                     </button>
+                    <div className="col-span-2 md:col-span-1 flex justify-end">
+                        <button onClick={() => handleDeleteKpi(kpi.id, kpi.tempKey)} className="p-3 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                           <Trash2 size={20} />
+                        </button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
 
             <button 
-              className="w-full py-6 border-2 border-dashed border-white/10 rounded-[2rem] text-white/20 hover:text-emerald-400 hover:border-emerald-400/40 transition-all text-[11px] font-black uppercase flex items-center justify-center gap-3 mt-4 group"
+              className="w-full py-10 border-2 border-dashed border-gray-100 rounded-[32px] text-gray-300 hover:text-[#007e70] hover:border-[#007e70] hover:bg-[#007e70]/[0.02] transition-all flex flex-col items-center justify-center gap-3 group"
               onClick={() => {
                 setCurrentKpis([...currentKpis, {
                   id: null,
@@ -384,28 +382,26 @@ export default function AdminDashboard() {
                 }]);
               }}
             >
-               <div className="p-1 bg-white/5 rounded-lg group-hover:bg-emerald-400/20"><Plus size={20}/></div>
-               Add New Performance Indicator
+              <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
+                <Plus size={24}/>
+              </div>
+              <span className="text-sm font-black uppercase tracking-widest">เพิ่มตัวชี้วัดใหม่</span>
             </button>
           </div>
         </Modal>
 
         <style>{`
-          .admin-modal .ant-modal-content { background: #064e3b !important; border-radius: 50px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 50px 100px -20px rgba(0,0,0,0.5); }
-          .admin-modal .ant-modal-header { background: transparent !important; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 25px; }
-          
-          .admin-confirm-modal .ant-modal-content { background: #064e3b !important; border-radius: 35px; border: 1px solid rgba(255,255,255,0.1); color: white !important; }
-          .admin-confirm-modal .ant-modal-confirm-title { color: white !important; font-family: 'Kanit'; }
-          .admin-confirm-modal .ant-modal-confirm-content { color: rgba(255,255,255,0.6) !important; font-family: 'Kanit'; }
-          .admin-confirm-modal .ant-btn-default { background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; }
-          .admin-confirm-modal .ant-btn-dangerous { background: #f43f5e !important; border-radius: 12px; font-weight: bold; border: none; color: white !important; }
-          
-          .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; border: 2px solid #064e3b; }
-          .ant-input { border-radius: 15px !important; padding: 10px 15px !important; border: 1px solid rgba(255,255,255,0.1) !important; }
-          .ant-input-number { background: rgba(0,0,0,0.3) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 15px !important; overflow: hidden; }
-          .ant-input-number-input { color: #10b981 !important; font-weight: 900 !important; text-align: center !important; font-size: 16px !important; }
+          .apple-health-modal .ant-modal-content { 
+            border-radius: 40px; 
+            padding: 0; 
+            overflow: hidden;
+            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.2);
+          }
+          .apple-health-modal .ant-modal-header { padding: 32px 32px 0 32px; border: none; }
+          .apple-health-modal .ant-modal-body { padding: 0 32px 32px 32px; }
+          .apple-scrollbar::-webkit-scrollbar { width: 4px; }
+          .apple-scrollbar::-webkit-scrollbar-thumb { background: #e5e5e7; border-radius: 10px; }
+          .apple-num-input .ant-input-number-input { font-weight: 800 !important; color: #1d1d1f !important; }
           .ant-input-number-handler-wrap { display: none !important; }
         `}</style>
       </div>
@@ -413,24 +409,15 @@ export default function AdminDashboard() {
   );
 }
 
-function AdminStatCard({ label, value, icon: Icon, color }) {
-  const colors = {
-    emerald: "from-emerald-400 to-teal-500",
-    sky: "from-sky-400 to-indigo-500",
-    orange: "from-orange-400 to-amber-500",
-    rose: "from-rose-400 to-pink-500"
-  };
+function HealthStat({ label, value, icon: Icon, color }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 relative overflow-hidden group hover:scale-[1.02] transition-all duration-500 shadow-xl">
-      <div className={`absolute -right-8 -top-8 w-40 h-40 bg-gradient-to-br ${colors[color]} blur-[60px] opacity-10 group-hover:opacity-25 transition-opacity duration-700`} />
-      <div className="relative z-10 flex justify-between items-start">
-        <div>
-          <p className="text-5xl font-black tracking-tighter leading-none">{value}</p>
-          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] mt-3 leading-none">{label}</p>
-        </div>
-        <div className={`p-5 rounded-[1.5rem] bg-gradient-to-br ${colors[color]} shadow-2xl transform group-hover:rotate-12 transition-transform duration-500`}>
-          <Icon size={26} className="text-emerald-950" />
-        </div>
+    <div className="bg-white p-6 rounded-[28px] border border-gray-100/60 shadow-[0_10px_30px_rgba(0,0,0,0.02)] flex flex-col gap-4 hover:translate-y-[-4px] transition-all duration-300 group">
+      <div className="w-11 h-11 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform" style={{ backgroundColor: `${color}10` }}>
+        <Icon size={22} style={{ color: color }} />
+      </div>
+      <div>
+        <div className="text-3xl font-black tracking-tighter text-[#1d1d1f]">{value}</div>
+        <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">{label}</div>
       </div>
     </div>
   );
