@@ -35,13 +35,15 @@ function buildNCDMap(ncdList) {
   const map = {};
   if (!Array.isArray(ncdList)) return map;
 
-  ncdList.forEach(({ indicator_group, total_percent, total_target, total_result }) => {
+  ncdList.forEach(({ indicator_group, total_percent, total_target, total_result, last_processed_at }) => {
     const code = NCD_CODE_MAP[indicator_group];
     if (code) {
       map[code] = {
         percent: parseFloat(total_percent) || 0,
         target: total_target,
-        result: total_result
+        result: total_result,
+        last_processed_at: last_processed_at
+
       };
     }
     
@@ -83,7 +85,9 @@ function groupByDepartment(rows, performanceMap) {
       percent,
       target: perf?.target ?? null,
       result: perf?.result ?? null,
-      status: calcStatus(percent, threshold)
+      status: calcStatus(percent, threshold),
+      last_processed_at: perf?.last_processed_at ?? null
+      
     });
   });
 

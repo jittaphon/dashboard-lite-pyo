@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Activity, User } from "lucide-react";
-
+import {AdminButton} from "./AdminButton";
 export default function Navbar() {
   const location = useLocation();
   // แก้ไข logic การเช็ค activeTab ให้ตรงกับ path /model

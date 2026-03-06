@@ -154,75 +154,87 @@ public function getNcdKpiDeparment($year)
         $province = '56';
         $data = DB::select("
             SELECT * FROM (
-                -- ชุดที่ 1-6 เหมือนเดิม (ตรวจสอบ db_ncd_one. ให้ดี)
+                -- ชุดที่ 1: ht_screening
                 SELECT 
                     '1_ht_screening' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(COALESCE(target,0)) AS total_target, SUM(COALESCE(result,0)) AS total_result,
-                    ROUND(IF(SUM(COALESCE(target,0)) > 0,(SUM(COALESCE(result,0))/SUM(COALESCE(target,0)))*100,0),2) AS total_percent
+                    ROUND(IF(SUM(COALESCE(target,0)) > 0,(SUM(COALESCE(result,0))/SUM(COALESCE(target,0)))*100,0),2) AS total_percent,
+                    MAX(STR_TO_DATE(date_com, '%Y%m%d%H%i')) AS last_processed_at
                 FROM db_ncd_one.kpi_s_ht_screen
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
                 
                 UNION ALL
                 
+                -- ชุดที่ 2: ht_followup
                 SELECT 
                     '2_ht_followup' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0)) AS total_target,
                     SUM(COALESCE(resultq1,0)+COALESCE(resultq2,0)+COALESCE(resultq3,0)+COALESCE(resultq4,0)) AS total_result,
-                    ROUND(IF(SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0)) > 0, (SUM(COALESCE(resultq1,0)+COALESCE(resultq2,0)+COALESCE(resultq3,0)+COALESCE(resultq4,0)) / SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0))) * 100, 0),2) AS total_percent
+                    ROUND(IF(SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0)) > 0, (SUM(COALESCE(resultq1,0)+COALESCE(resultq2,0)+COALESCE(resultq3,0)+COALESCE(resultq4,0)) / SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0))) * 100, 0),2) AS total_percent,
+                    MAX(STR_TO_DATE(date_com, '%Y%m%d%H%i')) AS last_processed_at
                 FROM db_ncd_one.kpi_s_repleate2
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
                 
                 UNION ALL
                 
+                -- ชุดที่ 3: ht_control
                 SELECT 
                     '3_ht_control' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(COALESCE(target,0)) AS total_target, SUM(COALESCE(result_bp1_d,0)) AS total_result,
-                    ROUND(IF(SUM(COALESCE(target,0)) > 0,(SUM(COALESCE(result_bp1_d,0))/SUM(COALESCE(target,0)))*100,0),2) AS total_percent
+                    ROUND(IF(SUM(COALESCE(target,0)) > 0,(SUM(COALESCE(result_bp1_d,0))/SUM(COALESCE(target,0)))*100,0),2) AS total_percent,
+                    MAX(STR_TO_DATE(date_com, '%Y%m%d%H%i')) AS last_processed_at
                 FROM db_ncd_one.kpi_s_ht_control
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
                 
                 UNION ALL
                 
+                -- ชุดที่ 4: dm_control
                 SELECT 
                     '4_dm_control' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(CAST(COALESCE(target,0) AS UNSIGNED)) AS total_target, SUM(CAST(COALESCE(hba1c,0) AS UNSIGNED)) AS total_result,
-                    ROUND(IF(SUM(CAST(COALESCE(target,0) AS UNSIGNED)) > 0,(SUM(CAST(COALESCE(hba1c,0) AS UNSIGNED))/SUM(CAST(COALESCE(target,0) AS UNSIGNED)))*100,0),2) AS total_percent
+                    ROUND(IF(SUM(CAST(COALESCE(target,0) AS UNSIGNED)) > 0,(SUM(CAST(COALESCE(hba1c,0) AS UNSIGNED))/SUM(CAST(COALESCE(target,0) AS UNSIGNED)))*100,0),2) AS total_percent,
+                    MAX(STR_TO_DATE(date_com, '%Y%m%d%H%i')) AS last_processed_at
                 FROM db_ncd_one.kpi_s_dm_control
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
                 
                 UNION ALL
                 
+                -- ชุดที่ 5: dm_screen
                 SELECT 
                     '5_dm_screen' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(CAST(COALESCE(target,0) AS UNSIGNED)) AS total_target, SUM(CAST(COALESCE(result,0) AS UNSIGNED)) AS total_result,
-                    ROUND(IF(SUM(CAST(COALESCE(target,0) AS UNSIGNED)) > 0,(SUM(CAST(COALESCE(result,0) AS UNSIGNED))/SUM(CAST(COALESCE(target,0) AS UNSIGNED)))*100,0),2) AS total_percent
+                    ROUND(IF(SUM(CAST(COALESCE(target,0) AS UNSIGNED)) > 0,(SUM(CAST(COALESCE(result,0) AS UNSIGNED))/SUM(CAST(COALESCE(target,0) AS UNSIGNED)))*100,0),2) AS total_percent,
+                    MAX(STR_TO_DATE(date_com, '%Y%m%d%H%i')) AS last_processed_at
                 FROM db_ncd_one.kpi_s_dm_screen
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
                 
                 UNION ALL
                 
+                -- ชุดที่ 6: dm_followup
                 SELECT 
                     '6_dm_followup' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0)) AS total_target,
                     SUM(COALESCE(resultq1,0)+COALESCE(resultq2,0)+COALESCE(resultq3,0)+COALESCE(resultq4,0)) AS total_result,
-                    ROUND(IF(SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0)) > 0, (SUM(COALESCE(resultq1,0)+COALESCE(resultq2,0)+COALESCE(resultq3,0)+COALESCE(resultq4,0)) / SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0))) * 100, 0),2) AS total_percent
+                    ROUND(IF(SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0)) > 0, (SUM(COALESCE(resultq1,0)+COALESCE(resultq2,0)+COALESCE(resultq3,0)+COALESCE(resultq4,0)) / SUM(COALESCE(targetq1,0)+COALESCE(targetq2,0)+COALESCE(targetq3,0)+COALESCE(targetq4,0))) * 100, 0),2) AS total_percent,
+                    MAX(STR_TO_DATE(date_com, '%Y%m%d%H%i')) AS last_processed_at
                 FROM db_ncd_one.kpi_s_repleate1
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
                 
                 UNION ALL
                 
-                -- ชุดที่ 7: ตรวจสอบ db_ncd_one. ถ้าไม่มีให้เติมด้วยครับ
+                -- ชุดที่ 7: dm_remission
                 SELECT 
                     '7_dm_remission' AS indicator_group, b_year AS fiscal_year, province AS province_code,
                     SUM(CAST(COALESCE(target_all, 0) AS UNSIGNED)) AS total_target, 
                     SUM(CAST(COALESCE(target1, 0) + COALESCE(target2, 0) AS UNSIGNED)) AS total_result,
-                    ROUND(IF(SUM(CAST(COALESCE(target_all, 0) AS UNSIGNED)) > 0, (SUM(CAST(COALESCE(target1, 0) + COALESCE(target2, 0) AS UNSIGNED)) / SUM(CAST(COALESCE(target_all, 0) AS UNSIGNED))) * 100, 0), 2) AS total_percent
+                    ROUND(IF(SUM(CAST(COALESCE(target_all, 0) AS UNSIGNED)) > 0, (SUM(CAST(COALESCE(target1, 0) + COALESCE(target2, 0) AS UNSIGNED)) / SUM(CAST(COALESCE(target_all, 0) AS UNSIGNED))) * 100, 0), 2) AS total_percent,
+                    MAX(created_at) AS last_processed_at
                 FROM db_ncd_one.kpi_s_dm_remission
                 WHERE province = ? AND b_year = ?
                 GROUP BY b_year, province
@@ -236,7 +248,6 @@ public function getNcdKpiDeparment($year)
 
         return response()->json($data, 200, [], JSON_UNESCAPED_UNICODE);
     } catch (\Throwable $e) {
-        // ถ้ายัง 500 อีก ให้ดูข้อความ error ที่ส่งกลับมาใน json นี้ครับนาย
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
 }

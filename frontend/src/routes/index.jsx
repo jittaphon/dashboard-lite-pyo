@@ -1,44 +1,45 @@
 // routes.jsx
 import React from "react";
 import MainLayout from "../layouts/MainLayout";
-import { createHashRouter } from "react-router-dom";
+// 1. เปลี่ยนจาก createHashRouter เป็น createBrowserRouter
+import { createBrowserRouter } from "react-router-dom"; 
 
 import ViewPage from "../View/ViewPage";
 import DepartmentDetailPage from "../View/DepartmentDetailPage";
 import TopicDetailPage from "../View/TopicDetailPage";
 import ModelPage from "../View/ModelPage";
-import { Hammer } from "lucide-react"; // นำเข้า Icon ค้อนสำหรับหน้าปรับปรุง
-import  AdminDashboard from "../View/Admin"; // นำเข้า ModelPage สำหรับหน้าปรับปรุง
+import AdminDashboard from "../View/admin/Admin";
+import RequireAuth from "../components/util/RequireAuth";
+import LoginCallback from "../View/admin/LoginCallback";
 
-
-
-export const routes = createHashRouter([
+// 2. ใช้ createBrowserRouter แทน
+export const routes = createBrowserRouter([
+  {
+    path: "/authentication/callback",
+    element: <LoginCallback />,
+  },
+  {
+    path: '/authentication/member',
+    element: (
+     <RequireAuth>
+        <AdminDashboard />
+     </RequireAuth>
+    ),
+  },
   {
     path: "/",
     element: <MainLayout />,
     children: [
-      { 
-        index: true, 
-        element: <ViewPage /> 
-      },
-      { 
-        path: "department/:departmentKey", 
-        element: <DepartmentDetailPage /> 
-      },
-      { 
-        path: "department/:departmentKey/topic/:topicKey",
-        element: <TopicDetailPage /> 
-      },
-      { 
-        path: "model", // เพิ่ม path นี้
-        element: <ModelPage /> 
-      },
-      {
-        path: "admin", // เพิ่ม path นี้
-        element: <AdminDashboard /> // ใช้ AdminDashboard เป็น component สำหรับหน้าปรับปรุง
-      }
+      { index: true, element: <ViewPage /> },
+      { path: "department/:departmentKey", element: <DepartmentDetailPage /> },
+      { path: "department/:departmentKey/topic/:topicKey", element: <TopicDetailPage /> },
+      { path: "model", element: <ModelPage /> },
+      { path: "admin", element: <AdminDashboard /> }
     ],
   },
-]);
+], {
+  // 3. สำคัญมาก: ใส่ basename ให้ตรงกับโฟลเดอร์ /datahub/ บน Server
+  basename: "/datahub/kpi-pyo-hub/public"
+});
 
 export default routes;
