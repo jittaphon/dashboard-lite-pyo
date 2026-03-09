@@ -1,4 +1,5 @@
 import React from "react";
+
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -20,8 +21,13 @@ const itemVariants = {
   animate: { y: 0, opacity: 1, transition: { duration: 0.5 } }
 };
 
+
+
 // ─── KPI CARD (Updated Shadow & "ติดตาม" Label) ──────────────────
-function KpiCard({ item, index }) {
+function KpiCard({ item, index ,year ,departmentKey}) {
+    const navigate = useNavigate();
+
+
   const isMonitor = !item.threshold || item.threshold === 0;
   const isPassed  = item.status === "ผ่าน";
   const hasValue  = item.percent !== null && item.percent !== undefined;
@@ -59,13 +65,24 @@ function KpiCard({ item, index }) {
     statusLabel = "กำลังดำเนินการ";
   }
 
+  const handleNavigation = () => {
+    if (item.url && item.url !== "") {
+      window.open(item.url, "_blank");
+    } else {
+      // Navigate to internal topic detail page
+      // Assumption: item.id or item.key represents topicKey
+      const topicKey = item.id || item.key || index;
+      navigate(`/department/${departmentKey}/${year}/topic/${topicKey}`);
+    }
+  };
+
   return (
     <motion.div
       variants={itemVariants}
-      whileHover={{ 
-        y: -6, 
+      whileHover={{
+        y: -6,
         transition: { duration: 0.3 },
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.12)" 
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.12)",
       }}
       className="group bg-white/95 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/60 shadow-[0_10px_30px_-5px_rgba(0,0,0,0.06)] hover:bg-white transition-all duration-300 flex flex-col gap-4 relative overflow-hidden"
     >
@@ -76,89 +93,89 @@ function KpiCard({ item, index }) {
 
       {/* Header Badge */}
       <div className="flex items-center justify-between relative z-10">
-        <div 
+        <div
           className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border transition-colors"
-          style={{ 
-            color: themeColor, 
-            backgroundColor: `${themeColor}12`, 
-            borderColor: `${themeColor}30` 
+          style={{
+            color: themeColor,
+            backgroundColor: `${themeColor}12`,
+            borderColor: `${themeColor}30`,
           }}
         >
           {StatusIcon} {statusLabel}
         </div>
-        
-       
-        
       </div>
 
- 
-   {/* Main Content */}
-<div className="flex items-start gap-5 relative z-10 flex-1">
-  {isMonitor ? (
-    <div className="flex-1">
-      <h3 className="text-base font-black text-sky-700 leading-snug group-hover:text-sky-800 transition-colors">
-        {item.title}
-      </h3>
-      
-      {/* Date Badge - โทน Slate เรียบง่าย */}
-      {dateStr && (
-        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100/80 border border-slate-200/50 text-[9px] font-bold text-slate-500">
-          <Calendar size={10} className="text-slate-400" />
-          <span>ประมวลผลเมื่อ: {dateStr} น.</span>
-        </div>
-      )}
+      {/* Main Content */}
+      <div className="flex items-start gap-5 relative z-10 flex-1">
+        {isMonitor ? (
+          <div className="flex-1">
+            <h3 className="text-base font-black text-sky-700 leading-snug group-hover:text-sky-800 transition-colors">
+              {item.title}
+            </h3>
 
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-        <p className="text-[10px] text-sky-600 font-bold uppercase tracking-tight">รายการติดตามผลคืบหน้า</p>
-      </div>
-    </div>
-  ) : (
-    <>
-      <div className="flex-shrink-0">
-        <div className="drop-shadow-sm">
-          <Progress
-            type="circle"
-            percent={item.percent || 0}
-            size={76}
-            strokeWidth={10}
-            strokeColor={themeColor}
-            trailColor={`${themeColor}15`}
-            format={(p) => (
-              <div className="flex flex-col items-center leading-none">
-                <span className="text-[15px] font-black text-slate-800">
-                  {`${p}%`}
-                </span>
+            {/* Date Badge */}
+            {dateStr && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100/80 border border-slate-200/50 text-[9px] font-bold text-slate-500">
+                <Calendar size={10} className="text-slate-400" />
+                <span>ประมวลผลเมื่อ: {dateStr} น.</span>
               </div>
             )}
-          />
-        </div>
-      </div>
-      <div className="flex-1 pt-1">
-        <h3 className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 group-hover:text-emerald-800 transition-colors">
-          {item.title}
-        </h3>
 
-        {/* Date Badge - โทน Slate เรียบง่าย สีเดียวกับด้านบน */}
-        {dateStr && (
-          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100/80 border border-slate-200/50 text-[9px] font-bold text-slate-500">
-            <Calendar size={10} className="text-slate-400" />
-            <span>ประมวลผลเมื่อ: {dateStr} น.</span>
+            <div className="mt-2 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+              <p className="text-[10px] text-sky-600 font-bold uppercase tracking-tight">
+                รายการติดตามผลคืบหน้า
+              </p>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="flex-shrink-0">
+              <div className="drop-shadow-sm">
+                <Progress
+                  type="circle"
+                  percent={item.percent || 0}
+                  size={76}
+                  strokeWidth={10}
+                  strokeColor={themeColor}
+                  trailColor={`${themeColor}15`}
+                  format={(p) => (
+                    <div className="flex flex-col items-center leading-none">
+                      <span className="text-[15px] font-black text-slate-800">
+                        {`${p}%`}
+                      </span>
+                    </div>
+                  )}
+                />
+              </div>
+            </div>
+            <div className="flex-1 pt-1">
+              <h3 className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 group-hover:text-emerald-800 transition-colors">
+                {item.title}
+              </h3>
+
+              {/* Date Badge */}
+              {dateStr && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-100/80 border border-slate-200/50 text-[9px] font-bold text-slate-500">
+                  <Calendar size={10} className="text-slate-400" />
+                  <span>ประมวลผลเมื่อ: {dateStr} น.</span>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
-    </>
-  )}
-</div>
 
       {/* Footer Info */}
       <div className="flex items-center justify-between pt-4 border-t border-slate-100 relative z-10">
         <div className="flex flex-col gap-1">
-           <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-wider">
+          <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-wider">
             {!isMonitor ? (
               <div className="flex items-center gap-1.5 text-slate-400">
                 <Target size={12} className="text-emerald-500" />
-                <span>Goal <span className="text-slate-800 font-black">{item.threshold}%</span></span>
+                <span>
+                  Goal <span className="text-slate-800 font-black">{item.threshold}%</span>
+                </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-sky-600/80">
@@ -176,7 +193,7 @@ function KpiCard({ item, index }) {
         </div>
 
         <button
-          onClick={() => item.url && window.open(item.url, "_blank")}
+          onClick={handleNavigation}
           className="w-9 h-9 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-[#064e3b] group-hover:text-white group-hover:rotate-[-45deg] transition-all shadow-md flex-shrink-0"
         >
           <ChevronRight size={18} />
@@ -188,7 +205,7 @@ function KpiCard({ item, index }) {
 
 // ─── PAGE ─────────────────────────────────────────────────────
 export default function DepartmentDetailPage() {
-  const { departmentKey } = useParams();
+  const { departmentKey,year } = useParams();
   const navigate = useNavigate();
   const departments = useDepartmentStore((state) => state.departments);
   const department = departments.find((dept) => dept.key === departmentKey);
@@ -291,7 +308,7 @@ export default function DepartmentDetailPage() {
       {hasData ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {topics.map((item, index) => (
-            <KpiCard key={index} item={item} index={index} />
+            <KpiCard key={index} item={item} index={index} year={year} departmentKey={departmentKey} />
           ))}
         </div>
       ) : (

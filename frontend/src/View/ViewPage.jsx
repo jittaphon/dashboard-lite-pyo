@@ -186,7 +186,7 @@ export default function PhayaoHub() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
                 >
-                  <DeptCard dept={dept} index={i} />
+                  <DeptCard dept={dept} index={i} fiscalYear={fiscalYear}/>
                 </motion.div>
               ))
             )}

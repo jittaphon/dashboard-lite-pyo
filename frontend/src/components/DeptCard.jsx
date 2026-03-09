@@ -6,7 +6,8 @@ import { getKpiType } from '../utils/Utils';
 
 const ICONS = [Target, BarChart3, Activity, TrendingUp, Users, Eye, ShieldCheck, MapPin];
 
-export default function DeptCard({ dept, index }) {
+export default function DeptCard({ dept, index ,fiscalYear}) {
+  console.log(dept)
   const navigate = useNavigate();
   const kpis = dept.topic || [];
   const targets = kpis.filter(k => getKpiType(k) === "target");
@@ -19,7 +20,7 @@ export default function DeptCard({ dept, index }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={hasData ? { y: -4, scale: 1.01 } : {}}
-      onClick={() => hasData && navigate(`/department/${dept.key}`)}
+      onClick={() => hasData && navigate(`/department/${dept.key}/${fiscalYear}`)}
       className={`relative border flex flex-col rounded-2xl overflow-hidden h-full ${
         hasData 
           ? "bg-white border-slate-300 hover:border-[#0d3b2e] hover:shadow-xl transition-all cursor-pointer" 
