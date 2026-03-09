@@ -11,34 +11,47 @@ class KpiController extends Controller
     /**
      * ดึงข้อมูล KPI ทั้งหมด จัดกลุ่มตามกลุ่มงาน
      */
-    public function getGroupsKpiByYear($year)
-    {
-        try {
-            // ปรับ Query ให้เหลือการ Join ชั้นเดียว เพื่อป้องกันข้อมูลซ้ำ (Duplicate Rows)
-            $data = DB::select("
+  public function getGroupsKpiByYear($year)
+{
+    try {
+        /**
+         * ปรับ Logic: 
+         * 1. ใช้ Subquery เพื่อกรองเฉพาะ KPI ที่มีการตั้งค่าในปี ($year) นั้นๆ จริงๆ มาก่อน
+         * 2. นำผลลัพธ์มา LEFT JOIN กับตาราง groups เพื่อให้กลุ่มงานยังอยู่ครบ
+         */
+        $data = DB::select("
+            SELECT 
+                g.id   AS group_id,
+                g.name AS group_name,
+                kpi_data.id   AS kpi_id,
+                kpi_data.code AS kpi_code,
+                kpi_data.name AS kpi_name,
+                kpi_data.report_url,
+                kpi_data.threshold,
+                kpi_data.weight
+            FROM groups g
+            LEFT JOIN (
                 SELECT 
-                    g.id   AS group_id,
-                    g.name AS group_name,
-                    k.id   AS kpi_id,
-                    k.code AS kpi_code,
-                    k.name AS kpi_name,
+                    k.id, 
+                    k.group_id, 
+                    k.code, 
+                    k.name, 
                     k.report_url,
-                    ky.threshold,
+                    ky.threshold, 
                     ky.weight
-                FROM groups g
-                LEFT JOIN kpis k ON k.group_id = g.id
-                LEFT JOIN kpi_years ky ON ky.kpi_id = k.id 
-                    AND ky.fiscal_year = ? 
-                    AND ky.is_active = 1
-                ORDER BY g.id ASC, k.id ASC
-            ", [$year]);
+                FROM kpis k
+                INNER JOIN kpi_years ky ON k.id = ky.kpi_id
+                WHERE ky.fiscal_year = ? 
+                  AND ky.is_active = 1
+            ) AS kpi_data ON g.id = kpi_data.group_id
+            ORDER BY g.id ASC, kpi_data.id ASC
+        ", [$year]);
 
-            return response()->json($data, 200, [], JSON_UNESCAPED_UNICODE);
-        } catch (Throwable $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
+        return response()->json($data, 200, [], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
-
+}
     /**
      * บันทึกหรือแก้ไขตัวชี้วัด (KPI) และเกณฑ์เป้าหมาย (Threshold)
      */

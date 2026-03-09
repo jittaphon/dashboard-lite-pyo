@@ -11,7 +11,7 @@ import ModelPage from "../View/ModelPage";
 import AdminDashboard from "../View/admin/Admin";
 import RequireAuth from "../components/util/RequireAuth";
 import LoginCallback from "../View/admin/LoginCallback";
-
+import DiseaseControlDepartment from "../View/adminOfDepartment/DiseaseControlDepartment";
 // 2. ใช้ createBrowserRouter แทน
 export const routes = createBrowserRouter([
   {
@@ -21,9 +21,17 @@ export const routes = createBrowserRouter([
   {
     path: '/authentication/member',
     element: (
-     <RequireAuth>
+     //<RequireAuth>
         <AdminDashboard />
-     </RequireAuth>
+     //</RequireAuth>
+    ),
+  },
+   {
+    path: '/authentication/member/department/disease-control',
+    element: (
+     //<RequireAuth>
+        <DiseaseControlDepartment />
+     //</RequireAuth>
     ),
   },
   {

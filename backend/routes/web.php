@@ -32,6 +32,10 @@ $router->group([
         // จัดการกลุ่มงาน
         $router->post('group/save', 'KpiController@saveGroup');
         $router->delete('group/{id}', 'KpiController@deleteGroup');
+
+
+        // เอาข้อมูลตารางกลุ่มงาน/ตัวชี้วัด/report ไปแสดงในหน้า dashboard
+        $router->get('getlist-tb-disease-control', 'TbController@getTableListOfDiseaseControl');
     });
 });
 

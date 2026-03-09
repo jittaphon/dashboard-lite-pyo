@@ -81,7 +81,7 @@ const handleLogin = async (e) => {
   const params = new URLSearchParams({
     response_type: "code",
     client_id:project, // ใส่ client_id ของคุณ
-    redirect_uri: `${import.meta.env.VITE_BASE_DOMAIN}/datahub/kpi-pyo-hub/public/#/authentication/callback`, // เอา # ออก
+    redirect_uri: `${import.meta.env.VITE_BASE_DOMAIN}/datahub/kpi-pyo-hub/public/authentication/callback`, // เอา # ออก
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256"

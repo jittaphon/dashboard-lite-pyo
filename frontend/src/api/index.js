@@ -1,9 +1,7 @@
-
-import Auth from './Auth';
-
+import departmentAPI from './departmentAPI';
+import utilsAPI from './utilsAPI';
 export const API = {
-
-  Auth:Auth,
-
+  departmentAPI: departmentAPI,
+  utilsAPI: utilsAPI
 
 };
