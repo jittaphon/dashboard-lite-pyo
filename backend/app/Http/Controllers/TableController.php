@@ -55,21 +55,19 @@ public function getTableListOfDiseaseControl()
         ], 500);
     }
 }
-public function saveScreeningResults(Request $request)
+
+    public function saveScreeningResults(Request $request)
     {
         try {
-            // รับข้อมูลจาก React (ควรส่งมาในรูปแบบ Array ของ Object)
+            $dbName = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
             $data = $request->all();
 
             if (empty($data)) {
                 return response()->json(['status' => 'error', 'message' => 'ไม่มีข้อมูลส่งมา'], 400);
             }
 
-            // ใช้ upsert เพื่อจัดการ "ถ้าซ้ำให้ทับ ถ้าใหม่ให้เพิ่ม"
-            // พารามิเตอร์ 1: ข้อมูลที่ต้องการบันทึก
-            // พารามิเตอร์ 2: คอลัมน์ที่ใช้เช็คความซ้ำ (Unique Key)
-            // พารามิเตอร์ 3: คอลัมน์ที่ต้องการให้อัปเดตค่าเมื่อเกิดการซ้ำ
-            DB::table('tb_screening_results')->upsert(
+            // ระบุ table แบบเต็มชื่อฐานข้อมูล เช่น db_disease_control.tb_screening_results
+            DB::table($dbName . '.tb_screening_results')->upsert(
                 $data,
                 ['byear', 'risk_group', 'ampur'], 
                 ['risk_type', 'target', 'cxr_total', 'cxr_abnormal', 'ptb_plus', 'ptb_minus', 'ep_tb']
@@ -81,28 +79,25 @@ public function saveScreeningResults(Request $request)
             ]);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * ฟังก์ชัน GET ข้อมูล
-     * ดึงข้อมูลทั้งหมดมาแสดงผล พร้อมแปลงวันที่เป็น พ.ศ.
+     * ฟังก์ชัน GET ข้อมูล - ระบุ Database จาก env
      */
     public function getScreeningResults(Request $request)
     {
         try {
-            $query = DB::table('tb_screening_results');
+            $dbName = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
+            
+            // ดึงข้อมูลโดยระบุชื่อ Database นำหน้าชื่อตาราง
+            $query = DB::table($dbName . '.tb_screening_results');
 
-            // ถ้ามีการกรองปีงบประมาณจาก Frontend
             if ($request->has('byear')) {
                 $query->where('byear', $request->byear);
             }
 
-            // ถ้ามีการกรองตามอำเภอ
             if ($request->has('ampur')) {
                 $query->where('ampur', $request->ampur);
             }
@@ -111,7 +106,6 @@ public function saveScreeningResults(Request $request)
                             ->orderBy('ampur', 'asc')
                             ->get();
 
-            // จัดรูปแบบข้อมูลก่อนส่งกลับไปที่ React
             $formattedData = $results->map(function ($item) {
                 return [
                     'id'            => $item->id,
