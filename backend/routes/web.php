@@ -34,8 +34,14 @@ $router->group([
         $router->delete('group/{id}', 'KpiController@deleteGroup');
 
 
-        // เอาข้อมูลตารางกลุ่มงาน/ตัวชี้วัด/report ไปแสดงในหน้า dashboard
-        $router->get('getlist-tb-disease-control', 'TbController@getTableListOfDiseaseControl');
+    
+$router->get('getlist-tb-disease-control', 'TableController@getTableListOfDiseaseControl');
+
+// API สำหรับดึงข้อมูลจากตาราง tb_screening_results
+$router->get('get-screening-results', 'TableController@getScreeningResults');
+
+// API สำหรับบันทึก/อัปเดตข้อมูล (Upsert) จาก Excel หรือ Form
+$router->post('save-screening-results', 'TableController@saveScreeningResults');
     });
 });
 
