@@ -25,6 +25,7 @@ const itemVariants = {
 
 // ─── KPI CARD (Updated Shadow & "ติดตาม" Label) ──────────────────
 function KpiCard({ item, index ,year ,departmentKey}) {
+
     const navigate = useNavigate();
 
 
@@ -71,7 +72,7 @@ function KpiCard({ item, index ,year ,departmentKey}) {
     } else {
       // Navigate to internal topic detail page
       // Assumption: item.id or item.key represents topicKey
-      const topicKey = item.id || item.key || index;
+      const topicKey = item.uuid || item.key || index;
       navigate(`/department/${departmentKey}/${year}/topic/${topicKey}`);
     }
   };

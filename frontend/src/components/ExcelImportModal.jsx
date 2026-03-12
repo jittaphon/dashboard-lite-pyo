@@ -5,16 +5,17 @@ import {
   Database, Check, AlertCircle, Trash2, 
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, 
   MoreVertical, FileSpreadsheet, Loader2,
-  CheckCircle2, XCircle, Download, Clock
+  CheckCircle2, XCircle, Download, Clock, Send
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ExcelJS from "exceljs";
 
-export default function ExcelImportModal({ visible, onCancel, tableId, tableName }) {
+export default function ExcelImportModal({ visible, onCancel, tableId, tableName, columns: dbColumns = [], department , onUpload }) {
+
   // --- States ---
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
-  const [columns, setColumns] = useState([]);
+  const [displayColumns, setDisplayColumns] = useState([]); 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0); 
@@ -25,6 +26,11 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
   
   const rowsPerPage = 50; 
   const menuRef = useRef(null);
+
+  // ตรวจสอบว่ามีข้อมูลจาก Excel ตรงกับโครงสร้าง Database อย่างน้อย 1 คอลัมน์หรือไม่ (ไม่นับรวมคอลัมน์ระบบ)
+  const hasMatchedColumns = useMemo(() => {
+    return displayColumns.some(col => !col.isSystem && col.isMatched);
+  }, [displayColumns]);
 
   // --- Effects ---
   useEffect(() => {
@@ -37,18 +43,11 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
     return () => { document.body.style.overflow = 'unset'; };
   }, [visible]);
 
-  useEffect(() => {
-    const handleOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setActiveMenu(null);
-    };
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, []);
-
+ 
   const resetState = () => {
     setFile(null); 
     setPreviewData([]); 
-    setColumns([]); 
+    setDisplayColumns([]); 
     setCurrentPage(1);
     setActiveMenu(null); 
     setIsUploading(false); 
@@ -80,65 +79,68 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
           throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
         }
 
-        let parsedColumns = [];
+        const excelHeaderRow = worksheet.getRow(1);
+        const excelHeaderMap = {}; 
+        excelHeaderRow.eachCell((cell, colNumber) => {
+            if (cell.value) {
+                excelHeaderMap[cell.value.toString().trim()] = colNumber;
+            }
+        });
+
+        let finalColumns = dbColumns.map(col => {
+            const excelColIndex = excelHeaderMap[col.title] || excelHeaderMap[col.key];
+            return {
+                ...col,
+                isSystem: false,
+                isMatched: !!excelColIndex,
+                excelIndex: excelColIndex
+            };
+        });
+
+        const now = new Date();
+        const dbTimestamp = now.toISOString().slice(0, 19).replace('T', ' ');
+
+        finalColumns.push(
+            {
+                title: "วันที่อัปเดต (System)",
+                key: "update_at",
+                dataIndex: "update_at",
+                type: 'DATETIME',
+                isSystem: true,
+                isMatched: true
+            },
+        );
+
         let parsedData = [];
-
-        // 1. อ่าน Header และสร้างโครงสร้าง Column
-        const headerRow = worksheet.getRow(1);
-        headerRow.eachCell((cell, colNumber) => {
-            parsedColumns.push({
-                title: cell.value?.toString() || `Column ${colNumber}`,
-                dataIndex: `col_${colNumber}`,
-                key: `col_${colNumber}`,
-                type: 'VARCHAR'
-            });
-        });
-
-        // 2. เพิ่มคอลัมน์ "วันที่นำเข้า" ต่อท้ายสุด (System Column)
-        const importDateKey = "col_import_date";
-        parsedColumns.push({
-            title: "วันที่นำเข้า (System)",
-            dataIndex: importDateKey,
-            key: importDateKey,
-            type: 'DATETIME',
-            isSystem: true
-        });
-
-        // 3. สร้าง Timestamp สำหรับการนำเข้านี้
-        const currentTimestamp = new Date().toLocaleString('th-TH', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
-
-        // 4. อ่านข้อมูล Row ที่เหลือ
         worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 1) {
-                let rowData = { key: rowNumber };
+            if (rowNumber > 1) { 
+                let rowData = { _uId: `row-${rowNumber}-${Math.random().toString(36).substr(2, 9)}` };
                 
-                parsedColumns.forEach((col, idx) => {
+                finalColumns.forEach((col) => {
                     if (col.isSystem) {
-                        // ถ้าเป็นคอลัมน์ระบบที่เพิ่มมาเอง ให้ใส่ Timestamp
-                        rowData[col.dataIndex] = currentTimestamp;
+                        if (col.key === "col_import_date") rowData[col.key] = dbTimestamp;
+                        if (col.key === "update_at") rowData[col.key] = dbTimestamp;
+                        if (col.key === "col_department") rowData[col.key] = department || "N/A";
                     } else {
-                        // อ่านค่าปกติจาก Excel
-                        const cell = row.getCell(idx + 1);
-                        let value = cell.value;
-
-                        // จัดการเคสที่เป็น Object (Formula, RichText, Date)
-                        if (value && typeof value === 'object') {
-                            if (value.result !== undefined) value = value.result;
-                            else if (value.richText) value = value.richText.map(rt => rt.text).join("");
-                            else if (value instanceof Date) value = value.toLocaleString('th-TH');
+                        if (col.excelIndex) {
+                            const cell = row.getCell(col.excelIndex);
+                            let value = cell.value;
+                            if (value && typeof value === 'object') {
+                                if (value.result !== undefined) value = value.result;
+                                else if (value.richText) value = value.richText.map(rt => rt.text).join("");
+                                else if (value instanceof Date) value = value.toISOString().split('T')[0];
+                            }
+                            rowData[col.dataIndex || col.key] = (value !== null && value !== undefined) ? value.toString() : "";
+                        } else {
+                            rowData[col.dataIndex || col.key] = ""; 
                         }
-
-                        rowData[col.dataIndex] = (value !== null && value !== undefined) ? value.toString() : "";
                     }
                 });
                 parsedData.push(rowData);
             }
         });
 
-        setColumns(parsedColumns);
+        setDisplayColumns(finalColumns);
         setPreviewData(parsedData);
         setFile(selectedFile);
         setCurrentPage(1);
@@ -158,40 +160,65 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
     setActiveMenu(null);
   };
 
-  const handleApply = () => {
-    if (!file || previewData.length === 0) return;
-    setIsUploading(true); 
-    setUploadProgress(0); 
-    setUploadError(null);
-    
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
+  const handleApply = async () => {
+    if (!file || previewData.length === 0 || !hasMatchedColumns) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const finalPayload = {
+      table_id: tableId,
+      table_name: tableName,
+      department: department,
+      import_at: new Date().toISOString(),
+      total_records: previewData.length,
+      data: previewData.map(({ _uId, ...rest }) => rest),
+    };
+
+    try {
+      const response = await onUpload(finalPayload);
+
+      if (response.status === 200 || response.data?.success) {
+        // 1. จำลอง Progress ให้เต็ม 100
+        setUploadProgress(100);
+        
+        // 2. แสดง UI หน้าจอสำเร็จ (Success Popup)
+        setUploadResult({
+          total: previewData.length,
+          table: tableName
+        });
+
+        // 3. หน่วงเวลา 2.5 วินาทีเพื่อให้ User เห็นหน้าจอสำเร็จก่อน Refresh
         setTimeout(() => {
-          setIsUploading(false);
-          setUploadResult({ total: previewData.length, table: tableName });
-        }, 500);
+          window.location.reload();
+        }, 2500);
+        
+      } else {
+        throw new Error("Server responded with an error");
       }
-    }, 150);
+    } catch (err) {
+      setUploadError(err.message || "เกิดข้อผิดพลาดในการนำเข้าข้อมูล");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const downloadTemplate = async () => {
-    if (!columns || columns.length === 0) return;
+    if (!dbColumns || dbColumns.length === 0) return;
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Template');
-    // โหลดเฉพาะคอลัมน์ที่ไม่ใช่ System ออกไปเป็น Template
-    const templateCols = columns.filter(c => !c.isSystem).map(col => col.title);
-    worksheet.addRow(templateCols);
-    
+    const templateCols = dbColumns.map(col => col.title);
+    const headerRow = worksheet.addRow(templateCols);
+    headerRow.eachCell((cell) => {
+        cell.font = { bold: true };
+        cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFE2E8F0'} };
+    });
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Template_${tableName || 'Table'}.xlsx`;
+    a.download = `Template_${tableId}.xlsx`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -205,8 +232,8 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
   const renderTypeIcon = (col) => {
     if (col.isSystem) return "SYS";
     const t = col.type?.toLowerCase() || "";
-    if (t.includes('int') || t.includes('decimal')) return "123";
-    if (t.includes('date')) return "CAL";
+    if (t.includes('int') || t.includes('decimal') || t.includes('double')) return "123";
+    if (t.includes('date') || t.includes('time')) return "CAL";
     return "ABC";
   };
 
@@ -226,17 +253,13 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
       {visible && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-0 md:p-4">
           <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
             onClick={onCancel} 
             className="absolute inset-0 bg-gradient-to-br from-emerald-600/95 to-teal-600/95 backdrop-blur-md" 
           />
           
           <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-            animate={{ scale: 1, opacity: 1, y: 0 }} 
-            exit={{ scale: 0.95, opacity: 0 }} 
+            initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0 }} 
             className="bg-white w-full max-w-[98vw] h-full md:h-[94vh] rounded-none md:rounded-3xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] relative overflow-hidden flex flex-col border border-white/20"
           >
             {/* Popups (Success / Error / Loading) */}
@@ -250,7 +273,12 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
                   <p className="text-slate-500 text-lg mb-10 max-w-sm leading-relaxed">
                     บันทึกข้อมูลจำนวน <span className="text-slate-900 font-bold">{uploadResult.total.toLocaleString()} รายการ</span> เข้าสู่ <span className="block mt-1 font-mono text-emerald-600 bg-emerald-50 py-1 px-3 rounded-full inline-block text-sm">{uploadResult.table}</span>
                   </p>
-                  <button onClick={onCancel} className="bg-slate-900 hover:bg-black text-white px-12 py-4 rounded-2xl font-bold active:scale-95 shadow-xl shadow-slate-200">เสร็จสิ้น</button>
+                  <div className="flex flex-col items-center gap-2">
+                    <button onClick={onCancel} className="bg-slate-900 hover:bg-black text-white px-12 py-4 rounded-2xl font-bold active:scale-95 shadow-xl shadow-slate-200">เสร็จสิ้น</button>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4 flex items-center gap-2">
+                       <Clock size={10} /> Auto refreshing page...
+                    </span>
+                  </div>
                 </motion.div>
               )}
 
@@ -305,9 +333,9 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
                     <FileSpreadsheet size={14} className="text-emerald-600" />
                     <span className="text-[11px] font-bold text-slate-700 uppercase">เลือกไฟล์ Excel</span>
                   </label>
-                  <button onClick={downloadTemplate} disabled={columns.length === 0} className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-1.5 rounded-xl hover:bg-slate-50 shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                  <button onClick={downloadTemplate} disabled={dbColumns.length === 0} className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-1.5 rounded-xl hover:bg-slate-50 shadow-sm transition-all active:scale-95 disabled:opacity-50">
                     <Download size={14} className="text-blue-600" />
-                    <span className="text-[11px] font-bold text-slate-700 uppercase">Download Template</span>
+                    <span className="text-[11px] font-bold text-slate-700 uppercase">Template</span>
                   </button>
                 </div>
               </div>
@@ -318,7 +346,7 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
             <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-3 text-[11px] shrink-0">
               <div className="italic text-emerald-700 font-serif font-black w-6 border-r border-slate-200 select-none">fx</div>
               <div className="font-mono text-slate-400 truncate px-2 py-0.5 w-full text-xs font-bold">
-                = Table.Sync(Source("{file?.name || '---'}"), Target("{tableName}"))
+                = Table.Sync(Source("{file?.name || '---'}"), Target("{tableName}"), Department("{department}"))
               </div>
             </div>
 
@@ -326,9 +354,12 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
               <div className="w-52 bg-[#f8fafc] border-r border-slate-200 hidden lg:flex flex-col">
                 <div className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Table</div>
                 <div className="px-3">
-                  <div className="flex items-center gap-2 bg-white px-3 py-3 rounded-2xl border border-emerald-100 shadow-sm text-[11px] font-bold text-slate-700">
-                    <TableIcon size={14} className="text-emerald-500" />
-                    <span className="truncate">{tableName}</span>
+                  <div className="flex flex-col gap-2 bg-white px-3 py-3 rounded-2xl border border-emerald-100 shadow-sm">
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-700">
+                        <TableIcon size={14} className="text-emerald-500" />
+                        <span className="truncate">{tableName}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-mono italic px-6">{tableId}</div>
                   </div>
                 </div>
               </div>
@@ -348,7 +379,7 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
                 {!file && !isProcessing && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/50 z-10">
                     <UploadCloud size={48} className="text-slate-200 mb-4" />
-                    <p className="text-slate-400 font-bold text-sm tracking-wide uppercase">คลิกเลือกไฟล์เพื่อแสดงข้อมูล...</p>
+                    <p className="text-slate-400 font-bold text-sm tracking-wide uppercase">อัปโหลดไฟล์ที่ตรงกับโครงสร้าง {tableName}</p>
                   </div>
                 )}
 
@@ -356,26 +387,34 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
                   <thead className="sticky top-0 z-30">
                     <tr>
                       <th className="w-12 border-r border-b border-slate-300 bg-[#f1f5f9] sticky left-0 z-40"></th>
-                      {columns.map((col, idx) => (
-                        <th key={`head-${idx}`} className={`border-r border-b border-slate-300 p-0 min-w-[200px] align-top transition-colors ${col.isSystem ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+                      {displayColumns.map((col, idx) => (
+                        <th key={`head-col-${idx}-${col.key}`} className={`border-r border-b border-slate-300 p-0 min-w-[220px] align-top transition-colors ${col.isSystem ? 'bg-emerald-50' : 'bg-slate-50'}`}>
                           <div className="flex flex-col">
                             <div className={`px-4 py-3 flex items-center justify-between border-b border-slate-200 ${col.isSystem ? 'bg-emerald-100/50' : 'bg-slate-100'}`}>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 overflow-hidden">
                                 <span className={`text-[10px] font-black italic border px-1.5 rounded-md ${col.isSystem ? 'text-emerald-700 border-emerald-300 bg-white' : 'text-slate-500 border-slate-300 bg-white'}`}>
                                   {renderTypeIcon(col)}
                                 </span>
                                 <span className="text-[11px] font-black uppercase truncate text-slate-800">{col.title}</span>
                               </div>
-                              <div className={`${col.isSystem ? 'bg-emerald-600' : 'bg-emerald-500'} rounded-full p-0.5 shadow-sm`}>
-                                <Check size={10} className="text-white" strokeWidth={4} />
-                              </div>
+                              {col.isMatched ? (
+                                <div className={`${col.isSystem ? 'bg-emerald-600' : 'bg-emerald-500'} rounded-full p-0.5 shadow-sm shrink-0`}>
+                                  <Check size={10} className="text-white" strokeWidth={4} />
+                                </div>
+                              ) : (
+                                <div className="bg-orange-500 rounded-full p-0.5 shadow-sm shrink-0 animate-pulse" title="ไม่พบคอลัมน์นี้ในไฟล์ Excel">
+                                  <AlertCircle size={10} className="text-white" strokeWidth={4} />
+                                </div>
+                              )}
                             </div>
                             <div className="px-4 py-2 flex flex-col gap-1.5">
                               <div className="flex justify-between items-center text-[9px] font-bold tracking-tight">
-                                <span className={col.isSystem ? "text-emerald-700" : "text-emerald-600"}>{col.isSystem ? "SYSTEM GENERATED" : "MAPPED"}</span>
+                                <span className={col.isSystem ? "text-emerald-700" : (col.isMatched ? "text-emerald-600" : "text-orange-600")}>
+                                  {col.isSystem ? "SYSTEM GENERATED" : (col.isMatched ? "MAPPED SUCCESS" : "COLUMN MISSING")}
+                                </span>
                                 <span className="text-slate-300 font-mono">{col.type}</span>
                               </div>
-                              <div className={`h-1.5 w-full rounded-full ${col.isSystem ? 'bg-emerald-600' : 'bg-emerald-500'}`} />
+                              <div className={`h-1.5 w-full rounded-full ${col.isSystem ? 'bg-emerald-600' : (col.isMatched ? 'bg-emerald-500' : 'bg-orange-400')}`} />
                             </div>
                           </div>
                         </th>
@@ -386,22 +425,26 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
                     {!isProcessing && currentItems.map((row, rIdx) => {
                       const actualIndex = (currentPage - 1) * rowsPerPage + rIdx;
                       return (
-                        <tr key={`row-${actualIndex}`} className="row-hover group transition-colors">
+                        <tr key={row._uId} className="row-hover group transition-colors">
                           <td 
                             className="border-r border-slate-200 bg-[#f8fafc] text-[10px] text-center text-slate-400 font-bold sticky left-0 z-20 cursor-pointer group-hover:bg-emerald-600 group-hover:text-white transition-all"
                             onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); setActiveMenu({ index: actualIndex, x: rect.right + 2, y: rect.top }); }}
                           >
                             <div className="flex items-center justify-center gap-1 min-h-[32px]">{actualIndex + 1} <MoreVertical size={10} className="opacity-0 group-hover:opacity-100" /></div>
                           </td>
-                          {columns.map((col, cIdx) => {
-                            const cellRawValue = row[col.dataIndex];
-                            const cellValue = cellRawValue !== undefined && cellRawValue !== null ? cellRawValue.toString() : "";
-                            
+                          {displayColumns.map((col, cIdx) => {
+                            const value = row[col.dataIndex || col.key];
+                            const isMissing = !col.isSystem && !col.isMatched;
                             return (
-                              <td key={`cell-${actualIndex}-${cIdx}`} 
+                              <td key={`cell-${row._uId}-${cIdx}`} 
                                   className={`border-r border-slate-100 px-4 py-2 text-[11px] whitespace-nowrap truncate max-w-[300px] 
-                                  ${col.isSystem ? 'text-emerald-700 font-bold bg-emerald-50/20' : 'text-slate-600'}`}>
-                                {cellValue === "" ? <span className="text-slate-200 italic">null</span> : cellValue}
+                                  ${col.isSystem ? 'text-emerald-700 font-bold bg-emerald-50/20' : 'text-slate-600'}
+                                  ${isMissing ? 'bg-orange-50/30' : ''}`}>
+                                {(!value || value === "") ? (
+                                    <span className={isMissing ? "text-orange-300 italic" : "text-slate-200 italic"}>
+                                        {isMissing ? "missing col" : "null"}
+                                    </span>
+                                ) : value}
                               </td>
                             );
                           })}
@@ -431,9 +474,21 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
                 <button disabled={currentPage === totalPages || previewData.length === 0} onClick={() => setCurrentPage(totalPages)} className="p-2 hover:bg-slate-50 disabled:opacity-30 active:scale-90 transition-all text-slate-500"><ChevronsRight size={16} /></button>
               </div>
               <div className="flex items-center gap-3">
+                {!hasMatchedColumns && file && !isProcessing && (
+                  <span className="text-red-500 text-[11px] font-bold animate-pulse px-2">
+                    * ไม่พบคอลัมน์ที่ตรงกัน ไม่สามารถนำเข้าได้
+                  </span>
+                )}
+                <div className="hidden md:block px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200">
+                  Target: {tableId}
+                </div>
                 <button onClick={onCancel} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition-colors">ยกเลิก</button>
-                <button onClick={handleApply} disabled={!file || previewData.length === 0} className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold px-6 py-2.5 shadow-md flex items-center gap-2 disabled:opacity-50 transition-all">
-                  ยืนยันการนำเข้า ({previewData.length.toLocaleString()}) <ArrowRight size={16} />
+                <button 
+                    onClick={handleApply} 
+                    disabled={!file || previewData.length === 0 || !hasMatchedColumns || isUploading || uploadResult} 
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold px-6 py-2.5 shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isUploading ? "กำลังส่งข้อมูล..." : `ยืนยันนำเข้า (${previewData.length.toLocaleString()})`} <ArrowRight size={16} />
                 </button>
               </div>
             </div>

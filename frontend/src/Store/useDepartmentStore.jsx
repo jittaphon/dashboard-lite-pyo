@@ -74,9 +74,11 @@ function groupByDepartment(rows, performanceMap) {
     const perf = performanceMap[row.kpi_code] ?? null;
     const percent = perf ? perf.percent : null;
     const threshold = row.threshold !== null ? parseFloat(row.threshold) : null;
+    
 
     grouped[row.group_id].topic.push({
       id: row.kpi_id,
+      uuid: row.kpi_uuid, // <--- เพิ่มตรงนี้: รับรหัส UUID จาก Backend
       key: row.kpi_code,
       title: row.kpi_name,
       threshold,

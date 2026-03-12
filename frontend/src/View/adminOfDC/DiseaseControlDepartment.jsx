@@ -1,23 +1,24 @@
 // File: src/View/adminOfDepartment/AdminOfDiseaseControl.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { API } from '../../api'; 
 import { 
-  Database, Search, UploadCloud, FileSpreadsheet, 
-  ChevronRight, Activity, Clock, FileText, AlertCircle, RefreshCcw, Info, UserCircle
+  Database, Search, UploadCloud, ChevronRight, 
+  Clock, FileText, AlertCircle, RefreshCcw, Info, UserCircle
 } from 'lucide-react';
 import { 
-  Button, Card, Tag, Input, Badge, Skeleton, Empty, Row, Col, Tooltip, message 
+  Button, Card, Tag, Input, Skeleton, Row, Col, message, Empty 
 } from 'antd';
-
-import ExcelImportModal from './ExcelImportModal';
+import { API } from '../../api'; 
+import ExcelImportModal from '../../components/ExcelImportModal';
 
 export default function AdminOfDiseaseControl() {
+  const TableConfig = {
+  'tb_screening_results': API.dcdepartmentAPI.postSaveScreeningResults,
+  // อนาคตเพิ่มตรงนี้ได้เรื่อยๆ โดยไม่ต้องแก้ Modal
+};
   const [tableList, setTableList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const userSession = {
@@ -27,35 +28,28 @@ export default function AdminOfDiseaseControl() {
 
   const tableNameMap = {
     "tb_screening_results": "ตัวชี้วัด ผลการคัดกรองวัณโรค",
-    "tb_patient_registry": "ทะเบียนผู้ป่วยวัณโรครายใหม่",
-    "tb_followup_records": "บันทึกการติดตามอาการ",
-    "tb_lab_results": "ผลตรวจทางห้องปฏิบัติการ (Lab)",
+    "tb_risk_score": "ตัวชี้วัด ติดตามมาตรการผู้ป่วยวัณโรค แยกตามกลุ่มเสี่ยง Risk Score",
+
   };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (userSession.department === 'กลุ่มงานควบคุมโรคติดต่อ') {
-        const res = await API?.utilsAPI?.getTableOfKpiOfDiseaseControl?.() || {
-          data: {
-            data: [
-              { table_id: "tb_screening_results", row_count: 1250, modified_date: "2026-03-09" },
-              { table_id: "tb_patient_registry", row_count: 450, modified_date: "2026-03-08" },
-            ]
-          }
-        };
-        const data = res.data.data || res.data; 
-        if (Array.isArray(data)) {
-          setTableList(data);
-          if (data.length > 0 && !selectedTable) setSelectedTable(data[0].table_id);
-        }
+      const res = await API?.utilsAPI?.getTableOfKpiOfDiseaseControl?.();
+      const data = res?.data?.data || res?.data || [];
+      if (Array.isArray(data)) {
+        setTableList(data);
+        if (data.length > 0 && !selectedTable) setSelectedTable(data[0].table_id);
       }
+   
+   
     } catch (error) {
-      message.error("ไม่สามารถโหลดข้อมูลได้");
+      message.error("ไม่สามารถโหลดโครงสร้างตารางได้");
     } finally {
       setLoading(false);
     }
   };
+    
 
   useEffect(() => { fetchData(); }, []);
 
@@ -93,7 +87,7 @@ export default function AdminOfDiseaseControl() {
           <Button 
             icon={<RefreshCcw size={16} />} 
             onClick={fetchData}
-            className="rounded-2xl border-none shadow-lg h-12 px-6 font-bold text-emerald-700 hover:text-emerald-500 bg-white transition-all active:scale-95"
+            className="rounded-2xl border-none shadow-lg h-12 px-6 font-bold text-emerald-700 bg-white transition-all active:scale-95 hover:scale-105"
           >
             รีเฟรชรายการ
           </Button>
@@ -106,7 +100,7 @@ export default function AdminOfDiseaseControl() {
             
             {/* --- Left Column: Selection Menu --- */}
             <Col xs={24} lg={6}>
-              <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-auto lg:h-[calc(100vh-280px)] max-h-[500px]">
+              <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-auto lg:h-[calc(100vh-280px)]">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                   <Input 
                     prefix={<Search size={18} className="text-slate-400" />}
@@ -126,11 +120,11 @@ export default function AdminOfDiseaseControl() {
                         className={`group cursor-pointer p-5 rounded-[1.5rem] transition-all flex items-center justify-between ${
                           isSelected 
                           ? 'bg-emerald-600 shadow-xl shadow-emerald-600/30 text-white' 
-                          : 'hover:bg-emerald-50 text-slate-600 border border-transparent hover:border-emerald-100'
+                          : 'hover:bg-emerald-50 text-slate-600'
                         }`}
                       >
                         <div className="flex items-center gap-4 overflow-hidden">
-                          <div className={`p-2.5 rounded-xl shrink-0 ${isSelected ? 'bg-white text-emerald-600 shadow-sm' : 'bg-slate-100 text-slate-400 group-hover:bg-emerald-100 group-hover:text-emerald-500'}`}>
+                          <div className={`p-2.5 rounded-xl shrink-0 ${isSelected ? 'bg-white text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                             <FileText size={20} />
                           </div>
                           <div className="overflow-hidden">
@@ -146,11 +140,6 @@ export default function AdminOfDiseaseControl() {
                       </div>
                     );
                   })}
-                  {filteredTables.length === 0 && (
-                    <div className="text-center p-10 text-slate-400 font-medium">
-                      ไม่พบตารางที่ค้นหา
-                    </div>
-                  )}
                 </div>
               </div>
             </Col>
@@ -158,17 +147,17 @@ export default function AdminOfDiseaseControl() {
             {/* --- Right Column: Detail & Action --- */}
             <Col xs={24} lg={18}>
               {activeTableInfo ? (
-                <div className="flex flex-col gap-6 h-auto lg:h-[calc(100vh-280px)] max-h-[800px] animate-in fade-in slide-in-from-right-4 duration-500">
+                <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-500">
                   
-                  {/* --- 1. Table Info Card (Top) --- */}
-                  <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white w-full shrink-0">
+                  {/* --- Table Info Card --- */}
+                  <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white w-full">
                     <div className="flex flex-col md:flex-row justify-between gap-8 p-4">
                       <div className="flex-1 space-y-6">
                         <div>
                            <Tag className="bg-emerald-50 text-emerald-600 border-emerald-200 rounded-full px-4 py-1 font-black text-[10px] uppercase mb-4 shadow-sm">
                              Active Table
                            </Tag>
-                           <h2 className="text-4xl font-black text-slate-800 mb-2 leading-none tracking-tight">
+                           <h2 className="text-2xl font-black text-slate-800 mb-2 leading-none tracking-tight">
                              {getDisplayLabel(activeTableInfo)}
                            </h2>
                            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">
@@ -192,53 +181,51 @@ export default function AdminOfDiseaseControl() {
                               <Clock size={12} /> Last Modified
                             </p>
                             <p className="text-2xl mt-1 font-black text-slate-800 leading-none">
-                              {activeTableInfo.modified_date === 'ยังไม่มีการเปลี่ยนแปลง' || !activeTableInfo.modified_date ? '-' : activeTableInfo.modified_date}
+                              {activeTableInfo.modified_date || '-'}
                             </p>
                           </div>
                         </div>
                       </div>
 
-                      <div className="md:w-[300px] flex flex-col justify-center">
+                      <div className="md:w-[320px] flex flex-col justify-center">
                         <Button 
                           type="primary" 
                           block
                           onClick={() => setIsImportModalOpen(true)} 
-                          className="h-40 rounded-[2.5rem] bg-gradient-to-br from-emerald-500 to-teal-600 border-none text-xl font-black shadow-xl shadow-teal-600/30 hover:shadow-teal-600/50 hover:scale-[1.02] transition-all flex flex-col items-center justify-center gap-3 group"
+                          className="h-44 rounded-[2.5rem] bg-gradient-to-br from-emerald-500 to-teal-600 border-none text-xl font-black shadow-xl shadow-teal-600/30 hover:shadow-teal-600/50 hover:scale-[1.02] transition-all flex flex-col items-center justify-center gap-3 group"
                         >
-                          <UploadCloud size={36} className="text-white group-hover:-translate-y-1 transition-transform" />
-                          <span className="text-white">IMPORT EXCEL</span>
-                          <span className="text-[10px] text-emerald-100 font-bold tracking-[0.2em] uppercase">อัปโหลดข้อมูลที่นี่</span>
+                          <UploadCloud size={48} className="text-white group-hover:-translate-y-2 transition-transform duration-300" />
+                          <div className="flex flex-col items-center">
+                            <span className="text-white text-2xl tracking-tighter uppercase">Import Excel</span>
+                            <span className="text-[10px] text-emerald-100 font-bold tracking-[0.2em] uppercase mt-1">อัปโหลดข้อมูลที่นี่</span>
+                          </div>
                         </Button>
                       </div>
                     </div>
                   </Card>
             
-
-                  {/* --- 3. Quick Tips & Notice (Bottom) ถูกดันให้ชิดขอบล่าง --- */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0 ">
-                    <div className="bg-white shadow-xl border-none rounded-[2rem] p-8 flex gap-5 border-l-8 border-blue-500">
+                  {/* --- Tips & Notices --- */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white shadow-xl rounded-[2rem] p-8 flex gap-5 border-l-8 border-blue-500">
                       <div className="bg-blue-500 p-3 h-fit rounded-2xl text-white shadow-lg shadow-blue-500/30">
                         <Info size={24} />
                       </div>
                       <div>
-                        <h4 className="font-black text-slate-800 mb-1 text-lg leading-tight">โครงสร้างไฟล์</h4>
+                        <h4 className="font-black text-slate-800 mb-1 text-lg">โครงสร้างไฟล์</h4>
                         <p className="text-slate-500 text-sm leading-relaxed m-0 font-medium">
-                          ใช้ไฟล์ที่ดาวน์โหลดจากระบบ (Template) เท่านั้น เพื่อป้องกันความผิดพลาดของหัวตารางและการอ่านข้อมูล
+                          ระบบจะสร้าง Template ให้โดยอัตโนมัติตามโครงสร้างของตาราง <b>{activeTableInfo.table_id}</b>
                         </p>
                       </div>
                     </div>
 
-                    <div className="bg-white shadow-xl border-none rounded-[2rem] p-8 flex gap-5 border-l-8 border-rose-500">
+                    <div className="bg-white shadow-xl rounded-[2rem] p-8 flex gap-5 border-l-8 border-rose-500">
                       <div className="bg-rose-500 p-3 h-fit rounded-2xl text-white shadow-lg shadow-rose-500/30">
                         <AlertCircle size={24} />
                       </div>
                       <div>
-                        <h4 className="font-black text-rose-600 mb-1 text-lg leading-tight uppercase tracking-tight">ข้อควรระวัง: การเขียนทับข้อมูล</h4>
+                        <h4 className="font-black text-rose-600 mb-1 text-lg uppercase tracking-tight">ข้อควรระวัง</h4>
                         <p className="text-slate-500 text-sm leading-relaxed m-0 font-bold italic">
-                          "ระบบจะลบข้อมูลเก่าทั้งหมดในตารางนี้ และแทนที่ด้วยข้อมูลจากไฟล์ใหม่ทันที (Overwrite)" 
-                        </p>
-                        <p className="text-[10px] text-rose-400 mt-2 font-bold uppercase">
-                          * ข้อมูลเดิมจะไม่สามารถเรียกคืนได้ กรุณาตรวจสอบก่อนยืนยัน
+                          "ข้อมูลใหม่จะเข้าไปแทนที่ข้อมูลเดิมทั้งหมดทันที (Overwrite)" 
                         </p>
                       </div>
                     </div>
@@ -261,22 +248,23 @@ export default function AdminOfDiseaseControl() {
         )}
       </div>
 
-      {/* --- เรียกใช้ Modal --- */}
+      {/* --- เรียกใช้ Modal พร้อมส่งค่า Columns --- */}
       {selectedTable && (
         <ExcelImportModal 
           visible={isImportModalOpen}
           onCancel={() => setIsImportModalOpen(false)}
           tableId={selectedTable}
           tableName={getDisplayLabel(activeTableInfo)}
+          columns={activeTableInfo?.columns || []} // ส่งโครงสร้าง column แบบ dynamic ไปให้ Modal
+          department={userSession.department}
+          onUpload={TableConfig[selectedTable]} // ส่ง Function ที่ตรงกับ ID ไปให้
         />
       )}
 
       <style jsx>{`
         :global(.ant-card) { border-radius: 2.5rem !important; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
     </div>
   );

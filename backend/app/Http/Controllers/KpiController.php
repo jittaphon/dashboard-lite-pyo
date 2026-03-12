@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable; // ใช้ Throwable เพื่อดักจับทุก Error
@@ -11,21 +11,17 @@ class KpiController extends Controller
     /**
      * ดึงข้อมูล KPI ทั้งหมด จัดกลุ่มตามกลุ่มงาน
      */
-  public function getGroupsKpiByYear($year)
+public function getGroupsKpiByYear($year)
 {
     try {
-        /**
-         * ปรับ Logic: 
-         * 1. ใช้ Subquery เพื่อกรองเฉพาะ KPI ที่มีการตั้งค่าในปี ($year) นั้นๆ จริงๆ มาก่อน
-         * 2. นำผลลัพธ์มา LEFT JOIN กับตาราง groups เพื่อให้กลุ่มงานยังอยู่ครบ
-         */
         $data = DB::select("
             SELECT 
-                g.id   AS group_id,
-                g.name AS group_name,
-                kpi_data.id   AS kpi_id,
-                kpi_data.code AS kpi_code,
-                kpi_data.name AS kpi_name,
+                g.id      AS group_id,
+                g.name    AS group_name,
+                kpi_data.id      AS kpi_id,
+                kpi_data.uuid    AS kpi_uuid, -- ดึง UUID ออกมาใช้งาน
+                kpi_data.code    AS kpi_code,
+                kpi_data.name    AS kpi_name,
                 kpi_data.report_url,
                 kpi_data.threshold,
                 kpi_data.weight
@@ -33,6 +29,7 @@ class KpiController extends Controller
             LEFT JOIN (
                 SELECT 
                     k.id, 
+                    k.uuid, -- เพิ่มการดึง uuid จากตาราง kpis
                     k.group_id, 
                     k.code, 
                     k.name, 
@@ -55,53 +52,68 @@ class KpiController extends Controller
     /**
      * บันทึกหรือแก้ไขตัวชี้วัด (KPI) และเกณฑ์เป้าหมาย (Threshold)
      */
-    public function saveKpi(Request $request)
-    {
-        if (!$request->group_id || !$request->year) {
-            return response()->json(['status' => 'error', 'message' => 'กรุณาระบุกลุ่มงานและปีงบประมาณ'], 400);
-        }
-
-        DB::beginTransaction();
-        try {
-            $kpi_id = $request->kpi_id;
-            if ($kpi_id === 'null' || !$kpi_id) { $kpi_id = null; }
-
-            // เตรียมข้อมูลโดยไม่มี updated_at/created_at
-            $kpi_params = [
-                'group_id'   => $request->group_id,
-                'code'       => $request->kpi_code,
-                'name'       => $request->kpi_name,
-                'report_url' => $request->report_url
-            ];
-
-            if ($kpi_id) {
-                // UPDATE: ใช้การระบุเฉพาะฟิลด์ที่มีในตารางจริง
-                DB::table('kpis')->where('id', $kpi_id)->update($kpi_params);
-            } else {
-                // INSERT
-                $kpi_id = DB::table('kpis')->insertGetId($kpi_params);
-            }
-
-            // จัดการ kpi_years โดยตัด updated_at/created_at ออก
-            DB::table('kpi_years')->updateOrInsert(
-                [
-                    'kpi_id'      => $kpi_id,
-                    'fiscal_year' => $request->year
-                ],
-                [
-                    'threshold'  => $request->threshold ?? 0,
-                    'weight'     => $request->weight ?? 1,
-                    'is_active'  => 1
-                ]
-            );
-
-            DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'บันทึกสำเร็จ']);
-        } catch (Throwable $e) {
-            DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => 'DB Error: ' . $e->getMessage()], 500);
-        }
+   public function saveKpi(Request $request)
+{
+    if (!$request->group_id || !$request->year) {
+        return response()->json(['status' => 'error', 'message' => 'กรุณาระบุกลุ่มงานและปีงบประมาณ'], 400);
     }
+
+    DB::beginTransaction();
+    try {
+        $kpi_id = $request->kpi_id;
+        if ($kpi_id === 'null' || !$kpi_id) { $kpi_id = null; }
+
+        // เตรียมข้อมูลพื้นฐาน
+        $kpi_params = [
+            'group_id'   => $request->group_id,
+            'code'       => $request->kpi_code,
+            'name'       => $request->kpi_name,
+            'report_url' => $request->report_url,
+            'target_connection' => $request->target_connection, 
+            'target_table'      => $request->target_table
+        ];
+
+        if ($kpi_id) {
+            // --- กรณี UPDATE ---
+            // ใช้ id เดิมในการค้นหาและอัปเดต ไม่ต้องแตะต้อง UUID
+            DB::table('kpis')->where('id', $kpi_id)->update($kpi_params);
+        } else {
+            // --- กรณี INSERT ---
+            // เจน UUID ใหม่และใส่เข้าไปพร้อมข้อมูลอื่น
+            $kpi_params['uuid'] = (string) Str::uuid(); 
+            $kpi_id = DB::table('kpis')->insertGetId($kpi_params);
+        }
+
+        // จัดการตาราง kpi_years (ยังคงใช้ kpi_id ที่เป็นตัวเลขเพื่อเชื่อมความสัมพันธ์)
+        DB::table('kpi_years')->updateOrInsert(
+            [
+                'kpi_id'      => $kpi_id,
+                'fiscal_year' => $request->year
+            ],
+            [
+                'threshold'  => $request->threshold ?? 0,
+                'weight'     => $request->weight ?? 1,
+                'is_active'  => 1
+            ]
+        );
+
+        // ดึงข้อมูล UUID กลับมาโชว์ที่หน้าบ้าน
+        $current_kpi = DB::table('kpis')->where('id', $kpi_id)->first();
+
+        DB::commit();
+        return response()->json([
+            'status' => 'success', 
+            'message' => 'บันทึกสำเร็จ',
+            'data' => [
+                'id' => $kpi_id,
+                'uuid' => $current_kpi->uuid
+            ]
+        ]);
+    } catch (Throwable $e) {
+        DB::rollBack();
+        return response()->json(['status' => 'error', 'message' => 'DB Error: ' . $e->getMessage()], 500);
+    }
+}
     
     // ฟังก์ชัน saveGroup ให้แก้เช่นกัน
     public function saveGroup(Request $request)
@@ -157,6 +169,76 @@ class KpiController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+public function getTopicDetail($uuid, $year)
+{
+    try {
+        // STEP 1: หา Config จาก DB หลัก (db_kpi_hub)
+        $kpi = DB::table('kpis')->where('uuid', $uuid)->first();
+
+        if (!$kpi) {
+            return response()->json(['status' => 'error', 'message' => 'ไม่พบรายงาน'], 404);
+        }
+
+        // STEP 2: เตรียมชื่อ Database กลุ่มงาน
+        $targetDb = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
+        $tableName = $kpi->target_table; 
+
+        if (!$tableName) {
+            return response()->json(['status' => 'error', 'message' => 'รายงานนี้ไม่ได้ระบุชื่อตารางข้อมูลดิบ'], 422);
+        }
+
+        // STEP 3: กวาดข้อมูลจาก DB กลุ่มงาน
+        $fullPath = $targetDb . '.' . $tableName;
+        $results = DB::table($fullPath)
+                    ->where('byear', $year) 
+                    ->get();
+
+        // STEP 4: Format ข้อมูล
+        $formattedData = $results->map(function ($item) {
+            $row = (array)$item;
+            if (isset($row['update_at'])) {
+                $row['update_at_th'] = \Carbon\Carbon::parse($row['update_at'])
+                                        ->addYears(543)
+                                        ->format('d/m/Y H:i');
+            }
+            return $row;
+        });
+
+        // STEP 5: แก้ไขตรงนี้เพื่อดึง chart_type จาก DB
+        // ใช้ explode เปลี่ยนจาก string "bar,table,donut" ให้เป็น array ['bar', 'table', 'donut']
+        $supportedCharts = $kpi->chart_type 
+            ? explode(',', $kpi->chart_type) 
+            : ['bar', 'table', 'donut']; // fallback ถ้าใน DB เป็นค่าว่าง
+
+        $visualizations = [
+            'supported_charts' => $supportedCharts,
+            'chart_config' => [
+                // ในเมื่อไม่ได้เพิ่ม col ใน DB ก็ส่งชื่อ Field กลางๆ ไปก่อน 
+                // หรือส่ง null ไปให้ React ไปตัดสินใจเองจากชื่อ Key ใน JSON
+                'label_field' => null, 
+                'value_fields' => []
+            ]
+        ];
+
+        return response()->json([
+            'status' => 'success',
+            'config' => [
+                'title' => $kpi->name,
+                'code' => $kpi->code,
+                'unit' => $kpi->unit ?? 'ร้อยละ'
+            ],
+            'visualizations' => $visualizations,
+            'data' => $formattedData
+        ], 200, [], JSON_UNESCAPED_UNICODE);
+
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error', 
+            'message' => 'Backend Error: ' . $e->getMessage()
+        ], 500);
+    } 
+}
 
     /**
      * Sync ข้อมูลจาก NCD Dashboard (คง Logic เดิมของคุณ แต่ครอบ Throwable)

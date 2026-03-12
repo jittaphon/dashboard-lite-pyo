@@ -8,7 +8,6 @@ getHospitalAppointments() {
     return axiosClient.get("/api/utils/type_hos_list",);
 },
 
-
 // ฟังก์ชันใหม่สำหรับดึงรายชื่อตารางของ KPI กลุ่มงานควบคุมโรคติดต่อ
 getTableOfKpiOfDiseaseControl() {
   return axiosClient.get(`/api/v1/kpi/getlist-tb-disease-control`);

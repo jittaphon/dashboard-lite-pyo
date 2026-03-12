@@ -5,7 +5,7 @@ import { ArrowLeft, Home, Calendar, Database, LayoutDashboard, RefreshCcw } from
 import useDepartmentStore from '../Store/useDepartmentStore';
 import useLayoutStore from '../Store/useLayoutStore';
 import RGL, { WidthProvider } from "react-grid-layout";
-
+import { API } from '../api'; 
 const GridLayout = WidthProvider(RGL);
 
 export default function TopicDetailPage() {
@@ -28,7 +28,12 @@ export default function TopicDetailPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        console.log(`Fetching data for: Topic[${topicKey}] Year[${year}] Dept[${departmentKey}]`);
+
+        console.log(`Fetching data for Topic: ${topicKey}, Year: ${year}`);
+
+        const response = await API.departmentAPI.getReportByUUID(topicKey, year);
+        console.log("API Response:", response.data);
+      
         
         // จำลองการเรียก API
         await new Promise(resolve => setTimeout(resolve, 800));

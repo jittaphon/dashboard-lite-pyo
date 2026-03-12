@@ -34,6 +34,11 @@ $router->group([
         $router->delete('group/{id}', 'KpiController@deleteGroup');
 
 
+        // ดึงข้อมูลรายละเอียดรายงาน (กวาดข้อมูลจาก DB กลุ่มงาน)
+        $router->get('topic-detail/{uuid}/{year}', 'KpiController@getTopicDetail');
+        
+
+
     
 $router->get('getlist-tb-disease-control', 'TableController@getTableListOfDiseaseControl');
 

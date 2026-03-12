@@ -7,7 +7,7 @@ import { getKpiType } from '../utils/Utils';
 const ICONS = [Target, BarChart3, Activity, TrendingUp, Users, Eye, ShieldCheck, MapPin];
 
 export default function DeptCard({ dept, index ,fiscalYear}) {
-  console.log(dept)
+
   const navigate = useNavigate();
   const kpis = dept.topic || [];
   const targets = kpis.filter(k => getKpiType(k) === "target");
