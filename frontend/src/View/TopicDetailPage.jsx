@@ -1,170 +1,238 @@
-// TopicDetailPage.jsx
-import React, { useState, useEffect } from "react";
+// pages/TopicDetailPage.jsx
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, Database, LayoutDashboard, RefreshCcw } from "lucide-react";
-import useDepartmentStore from '../Store/useDepartmentStore';
+import { 
+  ArrowLeft, Calendar, RefreshCcw, MapPin, Search, 
+  ChevronDown, Info, AlertCircle, Clock 
+} from "lucide-react";
 import useLayoutStore from '../Store/useLayoutStore';
 import RGL, { WidthProvider } from "react-grid-layout";
-import { API } from '../api'; 
+import DynamicTable from "../components/MaterialDisplay/DynamicTable";
+import DynamicChart from "../components/MaterialDisplay/DynamicChart";
+import DynamicDonutChart from "../components/MaterialDisplay/DynamicDonutChart";
+import {API} from "../api";
+// อย่าลืม Import API ของคุณด้วยนะครับ
+// import API from "../services/api"; 
+
 const GridLayout = WidthProvider(RGL);
 
 export default function TopicDetailPage() {
   const { departmentKey, year, topicKey } = useParams();
   const navigate = useNavigate();
   
-  // Store Hooks
-  const departments = useDepartmentStore((state) => state.departments);
-  const getLayout = useLayoutStore((state) => state.getLayout);
-  
-  // Local States for Data
   const [apiData, setApiData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVisible, setIsVisible] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedAmpur, setSelectedAmpur] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. ─── PREPARE API CALL (MOCK) ──────────────────────────────
+  // --- 1. CONNECT TO REAL API ──────────────────────────────
   useEffect(() => {
-    setIsVisible(true);
-    
     const fetchData = async () => {
       setIsLoading(true);
+      setError(null);
       try {
-
         console.log(`Fetching data for Topic: ${topicKey}, Year: ${year}`);
-
+        
+        // เรียกใช้ API จริงของคุณ
         const response = await API.departmentAPI.getReportByUUID(topicKey, year);
-        console.log("API Response:", response.data);
-      
-        
-        // จำลองการเรียก API
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Mock Response
-        setApiData({
-          title: "ข้อมูลจำลอง (Mock Data)",
-          year: year,
-          lastUpdate: new Date().toLocaleString('th-TH'),
-          stats: [10, 20, 30, 40] // ข้อมูลที่จะเอาไปใส่ Chart
-        });
-      } catch (error) {
-        console.error("API Error:", error);
+        console.log("API Response:", response);
+
+        // นำข้อมูลจาก API มาเก็บใน State 
+        // (ปรับโครงสร้างให้ตรงกับที่ DynamicTable/Chart ต้องการ)
+        setApiData(response.data); 
+
+      } catch (err) {
+        console.error("API Error:", err);
+        setError("ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, [topicKey, year]); // เมื่อปีหรือหัวข้อเปลี่ยน ให้เรียก API ใหม่
-
-  // 2. ─── RENDER COMPONENTS ────────────────────────────────────
-  function renderWidget(item) {
-    if (isLoading) {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50">
-          <RefreshCcw className="w-8 h-8 text-emerald-500 animate-spin mb-2" />
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading API Data...</p>
-        </div>
-      );
+    if (topicKey && year) {
+      fetchData();
     }
+  }, [topicKey, year]);
 
+
+  console.log("Current API Data State:", apiData);
+
+  // --- 2. LOGIC: FILTER & SEARCH (ใช้จากข้อมูล API จริง) ────────
+  const ampurList = useMemo(() => {
+    // สมมติว่าข้อมูลตารางอยู่ใน apiData.data หรือ apiData ตรงๆ
+    const rawData = apiData?.data || apiData || [];
+    if (!Array.isArray(rawData)) return ["all"];
+    return ["all", ...new Set(rawData.map(item => item.ampur).filter(Boolean))];
+  }, [apiData]);
+
+  const filteredData = useMemo(() => {
+    const rawData = apiData?.data || apiData || [];
+    if (!Array.isArray(rawData)) return [];
+    
+    return rawData.filter(item => {
+      const matchAmpur = selectedAmpur === "all" || item.ampur === selectedAmpur;
+      const matchSearch = Object.values(item).some(val => 
+        String(val).toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      return matchAmpur && matchSearch;
+    });
+  }, [apiData, selectedAmpur, searchTerm]);
+
+  // --- 3. WIDGET RENDERER ──────────────────────────────────
+  function renderWidget(item) {
+    if (isLoading) return (
+      <div className="h-full flex flex-col items-center justify-center gap-2">
+        <RefreshCcw className="animate-spin text-emerald-500 w-8 h-8" />
+        <span className="text-slate-400 text-xs font-medium">Loading Data...</span>
+      </div>
+    );
+
+    if (error) return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 text-rose-500 p-4 text-center">
+        <AlertCircle size={40} strokeWidth={1.5} />
+        <p className="text-sm font-bold">{error}</p>
+        <button onClick={() => window.location.reload()} className="text-xs underline">ลองใหม่อีกครั้ง</button>
+      </div>
+    );
+    
     switch (item.id) {
-      case "chart":
-        return (
-          <div className="w-full h-full p-6 flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
-             <div className="text-4xl mb-2">📊</div>
-             <p className="font-black text-emerald-800">Chart for {year}</p>
-             <p className="text-[10px] text-emerald-600/60 font-mono mt-1">Ref: {topicKey}</p>
-          </div>
-        );
-      case "table":
-        return (
-          <div className="w-full h-full p-6 bg-white">
-             <div className="flex items-center gap-2 mb-4 border-b pb-2">
-                <Database size={16} className="text-slate-400" />
-                <span className="text-sm font-bold text-slate-700">Data Table - FY{year}</span>
-             </div>
-             <div className="space-y-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-8 w-full bg-slate-50 rounded-lg animate-pulse" />
-                ))}
-             </div>
-          </div>
-        );
-      default:
-        return (
-          <div className="w-full h-full flex items-center justify-center text-slate-300">
-            <LayoutDashboard size={40} opacity={0.2} />
-          </div>
-        );
+      case "chart": return <DynamicChart data={filteredData} />;
+      case "donut": return <DynamicDonutChart data={filteredData} />;
+      case "table": return <DynamicTable data={filteredData} />;
+      default: return null;
     }
   }
 
-  const savedLayout = getLayout(topicKey);
+  const layoutConfig = {
+    gridLayout: [
+      { i: 'donut-widget', x: 0, y: 0, w: 4, h: 4 },
+      { i: 'chart-widget', x: 4, y: 0, w: 8, h: 4 },
+      { i: 'table-widget', x: 0, y: 4, w: 12, h: 5.5 }
+    ],
+    items: [
+      { uid: 'donut-widget', id: 'donut', icon: '🍩', label: 'Proportion' },
+      { uid: 'chart-widget', id: 'chart', icon: '📊', label: 'Statistics Bar' },
+      { uid: 'table-widget', id: 'table', icon: '📋', label: 'Data Explorer' }
+    ]
+  };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 p-8">
+    <div className="h-screen w-full bg-gradient-to-br from-[#065f46] to-[#0d4a3e] flex flex-col p-6 overflow-hidden font-sans">
       
-      {/* Navigation & Header */}
-      <div className={`max-w-7xl mx-auto transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-        
-        <div className="flex items-center justify-between mb-8">
-          <button 
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl text-white transition-all"
-          >
-            <ArrowLeft size={18} />
-            <span className="font-bold text-sm">ย้อนกลับ</span>
+      {/* HEADER AREA */}
+      <header className="flex items-center justify-between mb-6 px-2">
+        <div className="flex items-center gap-5">
+          <button onClick={() => navigate(-1)} className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all border border-white/20">
+            <ArrowLeft className="w-6 h-6" />
           </button>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="bg-emerald-400 text-[#064e3b] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter shadow-sm">Real-time</span>
+              <span className="text-emerald-100/60 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1"><Info size={10} /> {departmentKey}</span>
+            </div>
+            <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-sm leading-none">
+              {apiData?.title || apiData?.config?.title || "รายละเอียดข้อมูล"}
+            </h1>
+          </div>
+        </div>
+        
+        {/* Last Update Info */}
+        <div className="hidden md:flex flex-col items-end opacity-80">
+          <span className="text-emerald-200/50 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
+            <Clock size={10}/> อัปเดตล่าสุด
+          </span>
+          <span className="text-white font-medium text-sm">{apiData?.lastUpdate || "-"}</span>
+        </div>
+      </header>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-950/30 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-emerald-300" />
-              <span className="text-white font-black text-sm">ปีงบประมาณ {year}</span>
+      {/* 🌟 UNIFIED CONTROL CENTER 🌟 */}
+      <div className="bg-white/95 backdrop-blur-2xl p-2.5 rounded-[2rem] shadow-2xl border border-white/40 mb-6 flex flex-wrap items-center gap-3">
+        
+        {/* Search */}
+        <div className="relative flex-1 min-w-[250px] group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
+          <input 
+            type="text" 
+            placeholder="ค้นหาข้อมูล..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-slate-100/50 border-none rounded-2xl text-sm font-medium text-slate-700 outline-none focus:ring-2 ring-emerald-500/20 transition-all"
+          />
+        </div>
+
+        <div className="hidden lg:block w-px h-8 bg-slate-200 mx-1" />
+
+        {/* Ampur Filter */}
+        <div className="flex items-center gap-3 bg-slate-100/80 px-4 py-3 rounded-2xl border border-slate-200/50 relative group cursor-pointer">
+          <MapPin size={18} className="text-emerald-600" />
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-0.5">พื้นที่อำเภอ</span>
+            <div className="flex items-center gap-2">
+              <select 
+                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer appearance-none pr-6 z-10"
+                value={selectedAmpur}
+                onChange={(e) => setSelectedAmpur(e.target.value)}
+              >
+                {ampurList.map(a => <option key={a} value={a} className="text-slate-800">{a === 'all' ? 'ทุกพื้นที่' : a}</option>)}
+              </select>
+              <ChevronDown className="absolute right-4 w-4 h-4 text-slate-400 pointer-events-none group-hover:text-emerald-600 transition-colors" />
             </div>
           </div>
         </div>
 
-        {/* Topic Info Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] p-8 mb-8 shadow-2xl relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
-          <h4 className="text-emerald-200/70 text-sm font-bold uppercase tracking-[0.2em] mb-2">Department: {departmentKey}</h4>
-          <h1 className="text-4xl font-black text-white tracking-tight">
-            {topicKey} <span className="text-emerald-300/50">Dashboard</span>
-          </h1>
+        {/* Year Label */}
+        <div className="flex items-center gap-3 px-6 py-3 bg-emerald-600 rounded-2xl shadow-lg border border-emerald-500/50">
+          <Calendar className="w-5 h-5 text-emerald-100" />
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold text-emerald-200/80 uppercase leading-none mb-0.5">ปีงบประมาณ</span>
+            <span className="text-white font-black text-sm leading-none">{year}</span>
+          </div>
         </div>
 
-        {/* Grid Layout Container */}
-        <div className="bg-black/5 backdrop-blur-sm rounded-[3rem] p-4 border border-white/5">
-          {savedLayout ? (
-            <GridLayout
-              className="layout"
-              layout={savedLayout.gridLayout}
-              cols={12}
-              rowHeight={60}
-              isDraggable={false}
-              isResizable={false}
-              margin={[20, 20]}
-            >
-              {savedLayout.items.map((item) => (
-                <div key={item.uid} className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-white/50 group">
-                  <div className="bg-slate-50 border-b border-slate-100 px-5 py-3 flex items-center justify-between">
-                    <span className="text-slate-700 font-black text-xs uppercase tracking-wider flex items-center gap-2">
-                      <span className="text-lg">{item.icon}</span> {item.label}
-                    </span>
-                  </div>
-                  <div className="h-[calc(100%-54px)]">
-                    {renderWidget(item)}
+        {/* Reset */}
+        <button 
+          onClick={() => {setSearchTerm(""); setSelectedAmpur("all");}}
+          className="p-3 hover:bg-rose-50 rounded-2xl text-slate-300 hover:text-rose-500 transition-all"
+        >
+          <RefreshCcw size={20} />
+        </button>
+      </div>
+
+      {/* DASHBOARD GRID AREA */}
+      <div className="flex-1 relative overflow-hidden bg-black/10 rounded-[3rem] border border-white/5 shadow-inner p-4">
+        <div className="absolute inset-0 p-4 overflow-y-auto custom-scrollbar">
+          <GridLayout
+            className="layout"
+            layout={layoutConfig.gridLayout}
+            cols={12}
+            rowHeight={window.innerHeight / 13} 
+            margin={[20, 20]}
+            isDraggable={false}
+            isResizable={false}
+          >
+            {layoutConfig.items.map((item) => (
+              <div key={item.uid} className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white/60">
+                <div className="bg-slate-50/50 px-6 py-4 flex items-center justify-between border-b border-slate-100 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
                   </div>
                 </div>
-              ))}
-            </GridLayout>
-          ) : (
-            <div className="py-20 text-center text-white/40">
-              <LayoutDashboard size={64} className="mx-auto mb-4 opacity-20" />
-              <p className="font-bold">No Layout Configured for {topicKey}</p>
-            </div>
-          )}
+                <div className="flex-1 relative h-full p-4 overflow-hidden">
+                  {renderWidget(item)}
+                </div>
+              </div>
+            ))}
+          </GridLayout>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+        select { -webkit-appearance: none; appearance: none; }
+      `}} />
     </div>
   );
 }
