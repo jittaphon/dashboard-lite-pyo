@@ -1,226 +1,171 @@
-// pages/TopicDetailPage.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, Calendar, RefreshCcw, MapPin, Search, 
-  ChevronDown, Info, AlertCircle, Clock 
-} from "lucide-react";
-import useLayoutStore from '../Store/useLayoutStore';
+import { ArrowLeft, Info, BarChart3, Table as TableIcon } from "lucide-react";
 import RGL, { WidthProvider } from "react-grid-layout";
-import DynamicTable from "../components/MaterialDisplay/DynamicTable";
+import { API } from "../api";
+import { getReportConfig } from "../utils/reportRegistry";
+
+// Import Components
 import DynamicChart from "../components/MaterialDisplay/DynamicChart";
-import DynamicDonutChart from "../components/MaterialDisplay/DynamicDonutChart";
-import {API} from "../api";
-// อย่าลืม Import API ของคุณด้วยนะครับ
-// import API from "../services/api"; 
+import DynamicTable from "../components/MaterialDisplay/DynamicTable";
 
 const GridLayout = WidthProvider(RGL);
 
 export default function TopicDetailPage() {
-  const { departmentKey, year, topicKey } = useParams();
+  const { year, topicKey } = useParams();
   const navigate = useNavigate();
   
-  const [apiData, setApiData] = useState(null);
+  const [apiResponse, setApiResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedAmpur, setSelectedAmpur] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- 1. CONNECT TO REAL API ──────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      setError(null);
       try {
-        console.log(`Fetching data for Topic: ${topicKey}, Year: ${year}`);
-        
-        // เรียกใช้ API จริงของคุณ
         const response = await API.departmentAPI.getReportByUUID(topicKey, year);
-        console.log("API Response:", response);
-
-        // นำข้อมูลจาก API มาเก็บใน State 
-        // (ปรับโครงสร้างให้ตรงกับที่ DynamicTable/Chart ต้องการ)
-        setApiData(response.data); 
-
+        setApiResponse(response.data);
       } catch (err) {
-        console.error("API Error:", err);
-        setError("ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง");
+        console.error(err);
       } finally {
         setIsLoading(false);
       }
     };
-
-    if (topicKey && year) {
-      fetchData();
-    }
+    fetchData();
   }, [topicKey, year]);
 
-
-  console.log("Current API Data State:", apiData);
-
-  // --- 2. LOGIC: FILTER & SEARCH (ใช้จากข้อมูล API จริง) ────────
-  const ampurList = useMemo(() => {
-    // สมมติว่าข้อมูลตารางอยู่ใน apiData.data หรือ apiData ตรงๆ
-    const rawData = apiData?.data || apiData || [];
-    if (!Array.isArray(rawData)) return ["all"];
-    return ["all", ...new Set(rawData.map(item => item.ampur).filter(Boolean))];
-  }, [apiData]);
+  const reportConfig = useMemo(() => {
+    return getReportConfig(apiResponse?.config?.code);
+  }, [apiResponse]);
 
   const filteredData = useMemo(() => {
-    const rawData = apiData?.data || apiData || [];
-    if (!Array.isArray(rawData)) return [];
-    
-    return rawData.filter(item => {
-      const matchAmpur = selectedAmpur === "all" || item.ampur === selectedAmpur;
-      const matchSearch = Object.values(item).some(val => 
-        String(val).toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      return matchAmpur && matchSearch;
-    });
-  }, [apiData, selectedAmpur, searchTerm]);
-
-  // --- 3. WIDGET RENDERER ──────────────────────────────────
-  function renderWidget(item) {
-    if (isLoading) return (
-      <div className="h-full flex flex-col items-center justify-center gap-2">
-        <RefreshCcw className="animate-spin text-emerald-500 w-8 h-8" />
-        <span className="text-slate-400 text-xs font-medium">Loading Data...</span>
-      </div>
+    const raw = apiResponse?.data || [];
+    if (!searchTerm) return raw;
+    return raw.filter(item => 
+      Object.values(item).some(v => String(v).toLowerCase().includes(searchTerm.toLowerCase()))
     );
+  }, [apiResponse, searchTerm]);
 
-    if (error) return (
-      <div className="h-full flex flex-col items-center justify-center gap-3 text-rose-500 p-4 text-center">
-        <AlertCircle size={40} strokeWidth={1.5} />
-        <p className="text-sm font-bold">{error}</p>
-        <button onClick={() => window.location.reload()} className="text-xs underline">ลองใหม่อีกครั้ง</button>
-      </div>
-    );
-    
-    switch (item.id) {
-      case "chart": return <DynamicChart data={filteredData} />;
-      case "donut": return <DynamicDonutChart data={filteredData} />;
-      case "table": return <DynamicTable data={filteredData} />;
-      default: return null;
-    }
-  }
+  const totalSummary = useMemo(() => {
+    if (!apiResponse?.data) return 0;
+    return apiResponse.data.reduce((acc, curr) => acc + (Number(curr.value) || 0), 0);
+  }, [apiResponse]);
 
-  const layoutConfig = {
-    gridLayout: [
-      { i: 'donut-widget', x: 0, y: 0, w: 4, h: 4 },
-      { i: 'chart-widget', x: 4, y: 0, w: 8, h: 4 },
-      { i: 'table-widget', x: 0, y: 4, w: 12, h: 5.5 }
-    ],
-    items: [
-      { uid: 'donut-widget', id: 'donut', icon: '🍩', label: 'Proportion' },
-      { uid: 'chart-widget', id: 'chart', icon: '📊', label: 'Statistics Bar' },
-      { uid: 'table-widget', id: 'table', icon: '📋', label: 'Data Explorer' }
-    ]
-  };
+  if (isLoading) return <div className="h-screen flex items-center justify-center text-white font-bold">กำลังโหลด...</div>;
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-[#065f46] to-[#0d4a3e] flex flex-col p-6 overflow-hidden font-sans">
+    <div className="h-screen w-full bg-gradient-to-br from-emerald-600/95 to-teal-600/95 flex flex-col p-6 overflow-hidden">
       
-      {/* HEADER AREA */}
-      <header className="flex items-center justify-between mb-6 px-2">
-        <div className="flex items-center gap-5">
-          <button onClick={() => navigate(-1)} className="p-3 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all border border-white/20">
-            <ArrowLeft className="w-6 h-6" />
+      {/* --- New S-Curve Header (Fixed Division Line) --- */}
+      <header className="relative mb-6 h-32 shrink-0 bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/20 shadow-2xl overflow-hidden flex items-stretch">
+        
+        {/* ส่วนสีเขียว (Left) - ใช้ clip-path เพื่อลบเส้นแบ่งตรงๆ ออก */}
+        <div 
+          className="relative z-10 flex-[1.6] flex items-center px-8 gap-6 bg-transparent"
+          style={{
+            clipPath: "polygon(0 0, 95% 0, 85% 100%, 0% 100%)", // ตัดท้ายให้เฉียงรอรับส่วนโค้ง
+          }}
+          
+        >
+          <button 
+            onClick={() => navigate(-1)} 
+            className="w-12 h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-2xl text-white border border-white/20 transition-all shadow-lg group"
+          >
+            <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
           </button>
+          
+          <div className="h-12 w-[1px] bg-white/20 mx-1" />
+
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-emerald-400 text-[#064e3b] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-tighter shadow-sm">Real-time</span>
-              <span className="text-emerald-100/60 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1"><Info size={10} /> {departmentKey}</span>
+           <h1 className="text-2xl font-black text-white leading-tight drop-shadow-md">
+    {apiResponse?.config?.title || " "} 
+    <span className="ml-2">ปีงบประมาณ {year}</span>
+</h1>
+            <div className="flex items-center gap-3 mt-2">
+                <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[10px] text-emerald-50 font-bold uppercase tracking-widest border border-white/10">
+                    PHAYAO MOPH Dashboard
+                </span>
+             
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-sm leading-none">
-              {apiData?.title || apiData?.config?.title || "รายละเอียดข้อมูล"}
-            </h1>
           </div>
         </div>
-        
-        {/* Last Update Info */}
-        <div className="hidden md:flex flex-col items-end opacity-80">
-          <span className="text-emerald-200/50 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
-            <Clock size={10}/> อัปเดตล่าสุด
-          </span>
-          <span className="text-white font-medium text-sm">{apiData?.lastUpdate || "-"}</span>
+
+        {/* --- ส่วนที่เป็น S-CURVE OVERLAY --- */}
+        <div className="absolute inset-0 w-full h-full z-20 pointer-events-none">
+          <svg 
+    viewBox="0 0 1000 100" 
+    preserveAspectRatio="none" 
+    className="h-full w-full"
+>
+    {/* 1. แผ่นสีชมพู - เริ่มที่ 750 */}
+    <path 
+        d="M 750,0 
+           C 800,0 780,100 830,100 
+           L 1000,100 L 1000,0 Z" 
+        className="fill-rose-500"
+    />
+    
+    {/* 2. เงาขอบ - ต้องเริ่ม 750 เหมือนกัน */}
+    <path 
+        d="M 750,0 C 800,0 780,100 830,100" 
+        fill="none" 
+        stroke="rgba(0,0,0,0.15)" 
+        strokeWidth="2"
+        className="blur-[2px]"
+    />
+
+    {/* 3. ไฮไลท์ขาว - เริ่ม 751 (ขยับมา 1 หน่วยให้เห็นขอบชัด) */}
+    <path 
+        d="M 751,0 C 801,0 781,100 831,100" 
+        fill="none" 
+        stroke="rgba(255,255,255,0.2)" 
+        strokeWidth="1"
+    />
+</svg>
         </div>
+
+        {/*
+        <div className="relative z-30 flex-1 flex flex-col justify-center items-end pr-12 text-white">
+            <div className="text-right">
+                <p className="text-rose-100/70 text-[10px] font-black uppercase tracking-[0.3em] mb-1">Total Summary</p>
+                <div className="flex items-baseline justify-end gap-2">
+                    <span className="text-5xl font-black tracking-tighter drop-shadow-xl">
+                        {totalSummary.toLocaleString()}
+                    </span>
+                    <span className="text-sm font-bold opacity-70 italic">Units</span>
+                </div>
+            </div>
+        </div>
+         ส่วนข้อมูลฝั่งขวา (Text & Total) */}
       </header>
 
-      {/* 🌟 UNIFIED CONTROL CENTER 🌟 */}
-      <div className="bg-white/95 backdrop-blur-2xl p-2.5 rounded-[2rem] shadow-2xl border border-white/40 mb-6 flex flex-wrap items-center gap-3">
-        
-        {/* Search */}
-        <div className="relative flex-1 min-w-[250px] group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors" />
-          <input 
-            type="text" 
-            placeholder="ค้นหาข้อมูล..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-slate-100/50 border-none rounded-2xl text-sm font-medium text-slate-700 outline-none focus:ring-2 ring-emerald-500/20 transition-all"
-          />
-        </div>
-
-        <div className="hidden lg:block w-px h-8 bg-slate-200 mx-1" />
-
-        {/* Ampur Filter */}
-        <div className="flex items-center gap-3 bg-slate-100/80 px-4 py-3 rounded-2xl border border-slate-200/50 relative group cursor-pointer">
-          <MapPin size={18} className="text-emerald-600" />
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black text-slate-400 uppercase leading-none mb-0.5">พื้นที่อำเภอ</span>
-            <div className="flex items-center gap-2">
-              <select 
-                className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer appearance-none pr-6 z-10"
-                value={selectedAmpur}
-                onChange={(e) => setSelectedAmpur(e.target.value)}
-              >
-                {ampurList.map(a => <option key={a} value={a} className="text-slate-800">{a === 'all' ? 'ทุกพื้นที่' : a}</option>)}
-              </select>
-              <ChevronDown className="absolute right-4 w-4 h-4 text-slate-400 pointer-events-none group-hover:text-emerald-600 transition-colors" />
-            </div>
-          </div>
-        </div>
-
-        {/* Year Label */}
-        <div className="flex items-center gap-3 px-6 py-3 bg-emerald-600 rounded-2xl shadow-lg border border-emerald-500/50">
-          <Calendar className="w-5 h-5 text-emerald-100" />
-          <div className="flex flex-col">
-            <span className="text-[9px] font-bold text-emerald-200/80 uppercase leading-none mb-0.5">ปีงบประมาณ</span>
-            <span className="text-white font-black text-sm leading-none">{year}</span>
-          </div>
-        </div>
-
-        {/* Reset */}
-        <button 
-          onClick={() => {setSearchTerm(""); setSelectedAmpur("all");}}
-          className="p-3 hover:bg-rose-50 rounded-2xl text-slate-300 hover:text-rose-500 transition-all"
-        >
-          <RefreshCcw size={20} />
-        </button>
-      </div>
-
-      {/* DASHBOARD GRID AREA */}
-      <div className="flex-1 relative overflow-hidden bg-black/10 rounded-[3rem] border border-white/5 shadow-inner p-4">
+      {/* Grid Content */}
+      <div className="flex-1 relative overflow-hidden bg-black/10 rounded-[2.8rem] p-5 border border-white/5 shadow-inner">
         <div className="absolute inset-0 p-4 overflow-y-auto custom-scrollbar">
           <GridLayout
             className="layout"
-            layout={layoutConfig.gridLayout}
+            layout={reportConfig?.layout || []}
             cols={12}
-            rowHeight={window.innerHeight / 13} 
+            rowHeight={window.innerHeight / 16}
             margin={[20, 20]}
             isDraggable={false}
-            isResizable={false}
           >
-            {layoutConfig.items.map((item) => (
-              <div key={item.uid} className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white/60">
-                <div className="bg-slate-50/50 px-6 py-4 flex items-center justify-between border-b border-slate-100 shrink-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{item.icon}</span>
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
+            {reportConfig?.widgets?.map((widget) => (
+              <div key={widget.id} className="bg-white rounded-[2.5rem] shadow-xl flex flex-col overflow-hidden border border-white/80 group">
+                <div className="px-8 py-5 bg-slate-50/40 border-b border-slate-100/50 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-inner">
+                        {widget.type === 'bar' ? <BarChart3 size={18} /> : <TableIcon size={18} />}
+                    </div>
+                    <span className="text-[17px] font-black text-slate-700 uppercase tracking-tight">{widget.label}</span>
                   </div>
                 </div>
-                <div className="flex-1 relative h-full p-4 overflow-hidden">
-                  {renderWidget(item)}
+                <div className="flex-1 relative p-5 overflow-hidden">
+                    {widget.type === 'bar' ? (
+                        <DynamicChart data={widget.transform(filteredData)} />
+                    ) : (
+                        <DynamicTable data={widget.transform(filteredData)} />
+                    )}
                 </div>
               </div>
             ))}
@@ -228,11 +173,14 @@ export default function TopicDetailPage() {
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
-        select { -webkit-appearance: none; appearance: none; }
-      `}} />
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; } 
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: rgba(255,255,255,0.2); 
+            border-radius: 10px; 
+        }
+      `}</style>
     </div>
   );
 }

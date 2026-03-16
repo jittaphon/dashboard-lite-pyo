@@ -21,17 +21,17 @@ export const routes = createBrowserRouter([
   {
     path: '/authentication/member',
     element: (
-     //<RequireAuth>
+     <RequireAuth allowedRoles={["admin"]}>
         <AdminDashboard />
-     //</RequireAuth>
+     </RequireAuth>
     ),
   },
    {
     path: '/authentication/member/department/disease-control',
     element: (
-     //<RequireAuth>
-        <DiseaseControlDepartment />
-     //</RequireAuth>
+     <RequireAuth allowedRoles={["DCadmin"]}>
+      <DiseaseControlDepartment />
+    </RequireAuth>
     ),
   },
   {

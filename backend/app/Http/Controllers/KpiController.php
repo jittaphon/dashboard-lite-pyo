@@ -23,6 +23,9 @@ public function getGroupsKpiByYear($year)
                 kpi_data.code    AS kpi_code,
                 kpi_data.name    AS kpi_name,
                 kpi_data.report_url,
+                kpi_data.target_connection,
+                kpi_data.target_table,
+                kpi_data.chart_type,
                 kpi_data.threshold,
                 kpi_data.weight
             FROM groups g
@@ -34,6 +37,9 @@ public function getGroupsKpiByYear($year)
                     k.code, 
                     k.name, 
                     k.report_url,
+                    k.target_connection,
+                    k.target_table,
+                    k.chart_type,
                     ky.threshold, 
                     ky.weight
                 FROM kpis k
@@ -52,7 +58,7 @@ public function getGroupsKpiByYear($year)
     /**
      * บันทึกหรือแก้ไขตัวชี้วัด (KPI) และเกณฑ์เป้าหมาย (Threshold)
      */
-   public function saveKpi(Request $request)
+public function saveKpi(Request $request)
 {
     if (!$request->group_id || !$request->year) {
         return response()->json(['status' => 'error', 'message' => 'กรุณาระบุกลุ่มงานและปีงบประมาณ'], 400);
@@ -63,28 +69,41 @@ public function getGroupsKpiByYear($year)
         $kpi_id = $request->kpi_id;
         if ($kpi_id === 'null' || !$kpi_id) { $kpi_id = null; }
 
-        // เตรียมข้อมูลพื้นฐาน
+        // ตรวจสอบ chart_type (ถ้าส่งมาเป็น Array ให้แปลงเป็น string "bar,table")
+        $chartType = $request->chart_type;
+        if (is_array($chartType)) {
+            $chartType = implode(',', $chartType);
+        }
+
+        // เตรียมข้อมูลพื้นฐานสำหรับตาราง kpis
         $kpi_params = [
-            'group_id'   => $request->group_id,
-            'code'       => $request->kpi_code,
-            'name'       => $request->kpi_name,
-            'report_url' => $request->report_url,
+            'group_id'          => $request->group_id,
+            'code'              => $request->kpi_code,
+            'name'              => $request->kpi_name,
+            'report_url'        => $request->report_url,
             'target_connection' => $request->target_connection, 
-            'target_table'      => $request->target_table
+            'target_table'      => $request->target_table,
+            'chart_type'        => $chartType, // เพิ่มการบันทึกประเภทกราฟ (รองรับหลายค่าใน string เดียว)
         ];
+
+        // --- Logic การตัดสินใจเรื่องข้อมูล (Data Integrity) ---
+        // ถ้ามีการใส่ report_url มา (External) ให้ล้างค่า config ของ DB ออก เพื่อไม่ให้ข้อมูลตีกัน
+        if (!empty($request->report_url)) {
+            $kpi_params['target_connection'] = null;
+            $kpi_params['target_table'] = null;
+            $kpi_params['chart_type'] = null;
+        }
 
         if ($kpi_id) {
             // --- กรณี UPDATE ---
-            // ใช้ id เดิมในการค้นหาและอัปเดต ไม่ต้องแตะต้อง UUID
             DB::table('kpis')->where('id', $kpi_id)->update($kpi_params);
         } else {
             // --- กรณี INSERT ---
-            // เจน UUID ใหม่และใส่เข้าไปพร้อมข้อมูลอื่น
-            $kpi_params['uuid'] = (string) Str::uuid(); 
+            $kpi_params['uuid'] = (string) \Illuminate\Support\Str::uuid(); 
             $kpi_id = DB::table('kpis')->insertGetId($kpi_params);
         }
 
-        // จัดการตาราง kpi_years (ยังคงใช้ kpi_id ที่เป็นตัวเลขเพื่อเชื่อมความสัมพันธ์)
+        // จัดการตาราง kpi_years (บันทึกเป้าหมายและน้ำหนักตามปีงบประมาณ)
         DB::table('kpi_years')->updateOrInsert(
             [
                 'kpi_id'      => $kpi_id,
@@ -93,25 +112,31 @@ public function getGroupsKpiByYear($year)
             [
                 'threshold'  => $request->threshold ?? 0,
                 'weight'     => $request->weight ?? 1,
-                'is_active'  => 1
+                'is_active'  => 1,
+               
             ]
         );
 
-        // ดึงข้อมูล UUID กลับมาโชว์ที่หน้าบ้าน
+        // ดึงข้อมูลล่าสุดกลับไปอัปเดต State ที่หน้าบ้าน
         $current_kpi = DB::table('kpis')->where('id', $kpi_id)->first();
 
         DB::commit();
         return response()->json([
             'status' => 'success', 
-            'message' => 'บันทึกสำเร็จ',
+            'message' => 'บันทึกข้อมูลเรียบร้อยแล้ว',
             'data' => [
                 'id' => $kpi_id,
-                'uuid' => $current_kpi->uuid
+                'uuid' => $current_kpi->uuid,
+                'chart_type' => $current_kpi->chart_type
             ]
         ]);
-    } catch (Throwable $e) {
+
+    } catch (\Throwable $e) {
         DB::rollBack();
-        return response()->json(['status' => 'error', 'message' => 'DB Error: ' . $e->getMessage()], 500);
+        return response()->json([
+            'status' => 'error', 
+            'message' => 'เกิดข้อผิดพลาดทางเทคนิค: ' . $e->getMessage()
+        ], 500);
     }
 }
     

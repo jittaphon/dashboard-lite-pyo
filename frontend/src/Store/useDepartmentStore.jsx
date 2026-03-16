@@ -84,6 +84,8 @@ function groupByDepartment(rows, performanceMap) {
       threshold,
       weight: row.weight,
       url: row.report_url,
+      target_table: row.target_table,
+      chart_type: row.chart_type,
       percent,
       target: perf?.target ?? null,
       result: perf?.result ?? null,
@@ -92,6 +94,8 @@ function groupByDepartment(rows, performanceMap) {
       
     });
   });
+
+
 
   return Object.values(grouped);
 }

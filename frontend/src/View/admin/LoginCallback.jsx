@@ -42,9 +42,6 @@ useEffect(() => {
 
   const performAuth = async () => {
     try {
-
-      
-
       const res = await API.Auth.exchangeToken({
         grant_type: "authorization_code",
         code,
@@ -54,14 +51,21 @@ useEffect(() => {
       });
 
 
+
       const elapsedTime = Date.now() - startTime;
       const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
       const expiresAt = Date.now() + 2 * 60 * 60 * 1000;
 
       setTimeout(() => {
+        // เก็บ Token ปกติ
         localStorage.setItem("access_token", res.data.access_token);
         localStorage.setItem("refresh_token", res.data.refresh_token);
         localStorage.setItem("token_expires_at", expiresAt.toString());
+        
+        // สมมติว่า res.data มีข้อมูล user หรือ role ส่งมาด้วย
+        // หรือถ้าไม่มี คุณอาจต้องถอดรหัส JWT (decode) หรือเรียก API Profile อีกตัว
+        const userRole = res.data.user?.role; // แก้ไขตามโครงสร้างข้อมูลจริงของคุณ
+        localStorage.setItem("user_role", userRole); 
 
         setResponse(res);
         setStatus("success");
@@ -69,7 +73,13 @@ useEffect(() => {
         clearInterval(progressTimer);
 
         setTimeout(() => {
-          navigate("/authentication/member", { replace: true });
+          // --- ส่วนที่ต้องแก้: เพิ่มเงื่อนไขการเด้งหน้า (Redirect Logic) ---
+          if (userRole === "DCadmin") {
+            navigate("/authentication/member/department/disease-control", { replace: true });
+          } else {
+            // Role อื่นๆ หรือ Admin ปกติ
+            navigate("/authentication/member", { replace: true });
+          }
         }, 1500);
       }, remainingTime);
 
