@@ -12,7 +12,7 @@ import AdminDashboard from "../View/admin/Admin";
 import RequireAuth from "../components/util/RequireAuth";
 import LoginCallback from "../View/admin/LoginCallback";
 import DiseaseControlDepartment from "../View/adminOfDC/DiseaseControlDepartment";
-import AIREAD from "../View/adminOfDC/AIREAD";  
+
 // 2. ใช้ createBrowserRouter แทน
 export const routes = createBrowserRouter([
   {

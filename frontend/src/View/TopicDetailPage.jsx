@@ -6,6 +6,7 @@ import { API } from "../api";
 import { getReportConfig } from "../utils/reportRegistry";
 
 // Import Components
+import StatCard from "../components/MaterialDisplay/StatCard";
 import DynamicChart from "../components/MaterialDisplay/DynamicChart";
 import DynamicTable from "../components/MaterialDisplay/DynamicTable";
 import DynamicHeatmapChart from "../components/MaterialDisplay/DynamicHeatmapChart";
@@ -161,18 +162,34 @@ export default function TopicDetailPage() {
                   </div>
                 </div>
                 <div className="flex-1 relative p-5 overflow-hidden">
-  {(() => {
-    const transformedData = widget.transform(filteredData);
-    switch (widget.type) {
-      case 'bar':
-        return <DynamicChart data={transformedData} />;
-      case 'heatmap':
-        return <DynamicHeatmapChart data={transformedData} title={widget.label} />;
-      case 'table':
-      default:
-        return <DynamicTable data={transformedData} />;
-    }
-  })()}
+ {(() => {
+                    // 🛡️ กันพัง: ตรวจสอบว่ามี transform function ไหม
+                    if (typeof widget.transform !== 'function') return null;
+                    
+                    const transformedData = widget.transform(filteredData);
+
+                    switch (widget.type) {
+                      case 'card':
+                        return (
+                          <StatCard 
+                            label={widget.label}
+                            value={transformedData.value}
+                            unit={transformedData.unit}
+                            color={transformedData.color}
+                            description={transformedData.description}
+                          />
+                        );
+                      case 'bar':
+                      case 'bar-stack':
+                        return <DynamicChart data={transformedData} type={widget.type} />;
+                      case 'heatmap':
+                        return <DynamicHeatmapChart data={transformedData} title={widget.label} />;
+                      case 'table':
+                        return <DynamicTable data={transformedData} />;
+                      default:
+                        return <div className="p-4 text-slate-400 text-sm">Unknown Widget Type</div>;
+                    }
+                  })()}
 </div>
               </div>
             ))}
