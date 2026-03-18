@@ -229,7 +229,60 @@ export const reportStrategies = {
   }
 }
     ]
-  }
+  },
+  // --- ส่วนหนึ่งของ reportRegistry.js หรือไฟล์ Config ---
+
+"TB_RISK_SCORE": {
+  layout: [
+    { i: 'measure-heatmap-percent', x: 0, y: 0, w: 12, h: 10 },
+  ],
+  widgets: [
+    {
+      id: 'measure-heatmap-percent',
+      type: 'heatmap',
+      label: 'ร้อยละการดำเนินงานมาตรการ (Intermediate + High Risk)',
+      transform: (data) => {
+        // 1. จัดกลุ่มข้อมูลตามอำเภอก่อน
+        const ampurGroups = data.reduce((acc, curr) => {
+          if (!acc[curr.ampur]) acc[curr.ampur] = {};
+          acc[curr.ampur][curr.topic] = Number(curr.count) || 0;
+          return acc;
+        }, {});
+
+        // 2. นำข้อมูลที่จัดกลุ่มแล้วมาคำนวณร้อยละ
+        const result = [];
+        Object.keys(ampurGroups).forEach(ampur => {
+          const vals = ampurGroups[ampur];
+          
+          // ตัวหาร: จำนวนผู้ป่วย Intermediate + High Risk ทั้งหมด
+          const totalRisk = (vals['2.2 Score 15 - 18 = Intermediate Risk ทั้งหมด'] || 0) + 
+                            (vals['2.3 Score ≥ 19 = High Risk ทั้งหมด'] || 0);
+
+          // ฟังก์ชันช่วยคำนวณ % ป้องกันการหารด้วยศูนย์
+          const getPercent = (value) => (totalRisk > 0 ? (value / totalRisk) * 100 : 0);
+
+          // รายการหัวข้อที่เราจะแสดงในแกน Y ของ Heatmap
+          const measures = [
+            { key: '3.1 Consult อายุรแพทย์ (ราย)', label: 'ร้อยละ Consult' },
+            { key: '4.1 ตรวจ LFT (ราย)', label: 'ร้อยละ ตรวจ LFT' },
+            { key: '5.1 กำกับการกินยาโดย จนท. (ราย)', label: 'ร้อยละ DOT โดย จนท.' }, // หรือรวม 5.1+5.2+5.3 ตามต้องการ
+            { key: 'High Risk Admit', label: 'ร้อยละ Admit' }
+          ];
+
+          measures.forEach(m => {
+            result.push({
+              ampur: ampur,        // แกน X
+              topic: m.label,      // แกน Y
+              count: getPercent(vals[m.key] || 0) // ค่า V (เป็นร้อยละ 0-100)
+            });
+          });
+        });
+
+        return result;
+      }
+    }
+  ]
+}
 };
 
 export const getReportConfig = (code) => reportStrategies[code] || reportStrategies["TB_SCREENING_RESULTS"];

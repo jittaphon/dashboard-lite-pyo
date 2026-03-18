@@ -13,6 +13,7 @@ import ExcelImportModal from '../../components/ExcelImportModal';
 export default function AdminOfDiseaseControl() {
   const TableConfig = {
   'tb_screening_results': API.dcdepartmentAPI.postSaveScreeningResults,
+  'tb_risk_score': API.dcdepartmentAPI.postSaveRiskScore,
   // อนาคตเพิ่มตรงนี้ได้เรื่อยๆ โดยไม่ต้องแก้ Modal
 };
   const [tableList, setTableList] = useState([]);

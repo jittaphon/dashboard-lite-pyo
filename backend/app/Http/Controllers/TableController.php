@@ -141,6 +141,62 @@ public function saveScreeningResults(Request $request)
         ], 500);
     }
 }
+public function saveRiskScore(Request $request)
+{
+    $rows = $request->input('data');
+
+    if (empty($rows)) {
+        return response()->json(['status' => 'error', 'message' => 'ไม่พบข้อมูลที่ส่งมา'], 400);
+    }
+
+    try {
+        $dbName = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
+        $fullTableName = $dbName . '.tb_risk_score';
+
+        // 1. ดึงปีงบประมาณจากข้อมูลที่ส่งมา เพื่อใช้ล้างข้อมูลเก่าเฉพาะปีนั้น
+        $byears = collect($rows)->pluck('byear')->unique()->filter()->values()->toArray();
+
+        DB::beginTransaction();
+
+        // 2. ล้างข้อมูลเก่า (Replace logic)
+        if (!empty($byears)) {
+            DB::table($fullTableName)
+                ->whereIn('byear', $byears)
+                ->delete();
+        }
+
+        // 3. เตรียมข้อมูล (จัดการเฉพาะค่าว่างเพื่อให้ DB ไม่ Error)
+        $insertData = array_map(function($item) {
+            foreach ($item as $key => $value) {
+                // ถ้าค่าเป็น string ว่าง ให้เปลี่ยนเป็น null เพื่อรองรับ Column ประเภทตัวเลข (Integer/Float)
+                if ($value === "") {
+                    $item[$key] = null;
+                }
+            }
+            return $item;
+        }, $rows);
+
+        // 4. บันทึกข้อมูลแบบ Chunk (ทีละ 500 รายการ)
+        foreach (array_chunk($insertData, 500) as $chunk) {
+            DB::table($fullTableName)->insert($chunk);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'บันทึกข้อมูลเรียบร้อยแล้ว จำนวน ' . count($insertData) . ' รายการ'
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'status' => 'error', 
+            'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
 
     /**
      * ฟังก์ชัน GET ข้อมูล - ระบุ Database จาก env

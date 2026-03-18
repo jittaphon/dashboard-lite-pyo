@@ -47,6 +47,9 @@ $router->get('get-screening-results', 'TableController@getScreeningResults');
 
 // API สำหรับบันทึก/อัปเดตข้อมูล (Upsert) จาก Excel หรือ Form
 $router->post('save-screening-results', 'TableController@saveScreeningResults');
+
+$router->post('save-risk-score', 'TableController@saveRiskScore');
+
     });
 });
 

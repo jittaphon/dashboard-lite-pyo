@@ -8,7 +8,7 @@ import { getReportConfig } from "../utils/reportRegistry";
 // Import Components
 import DynamicChart from "../components/MaterialDisplay/DynamicChart";
 import DynamicTable from "../components/MaterialDisplay/DynamicTable";
-
+import DynamicHeatmapChart from "../components/MaterialDisplay/DynamicHeatmapChart";
 const GridLayout = WidthProvider(RGL);
 
 export default function TopicDetailPage() {
@@ -161,12 +161,19 @@ export default function TopicDetailPage() {
                   </div>
                 </div>
                 <div className="flex-1 relative p-5 overflow-hidden">
-                    {widget.type === 'bar' ? (
-                        <DynamicChart data={widget.transform(filteredData)} />
-                    ) : (
-                        <DynamicTable data={widget.transform(filteredData)} />
-                    )}
-                </div>
+  {(() => {
+    const transformedData = widget.transform(filteredData);
+    switch (widget.type) {
+      case 'bar':
+        return <DynamicChart data={transformedData} />;
+      case 'heatmap':
+        return <DynamicHeatmapChart data={transformedData} title={widget.label} />;
+      case 'table':
+      default:
+        return <DynamicTable data={transformedData} />;
+    }
+  })()}
+</div>
               </div>
             ))}
           </GridLayout>
