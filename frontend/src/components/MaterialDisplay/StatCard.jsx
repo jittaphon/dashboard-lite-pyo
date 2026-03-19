@@ -1,63 +1,72 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-const StatCard = ({ label, value, unit, color, icon: Icon, description }) => {
+const StatCard = ({ label, value, unit, color = "#10b981", icon: Icon, description }) => {
   return (
     <motion.div
-      whileHover={{ y: -4 }}
-      className="h-full w-full rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center"
+      whileHover={{ y: -6, scale: 1.01 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="relative h-full w-full overflow-hidden rounded-[2rem] bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] flex flex-col justify-between p-6 cursor-default"
     >
-      <div className="flex items-center w-full px-5 py-5 gap-4">
+      {/* 🌟 Soft Glow Background Effect */}
+      <div 
+        className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10 blur-[35px] pointer-events-none transition-all duration-500"
+        style={{ backgroundColor: color }}
+      />
+
+      {/* 📊 Header Section: Label & Icon */}
+      <div className="relative z-10 flex items-start justify-between gap-4 w-full">
+        <span className="text-[13px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+          {label}
+        </span>
         
-        {/* Icon */}
         <div
-          className="flex items-center justify-center rounded-xl shrink-0"
+          className="flex items-center justify-center rounded-2xl shrink-0 shadow-sm"
           style={{
-            width: 44,
-            height: 44,
-            background: `${color}15`,
+            width: 46,
+            height: 46,
+            background: `linear-gradient(135deg, white, ${color}10)`,
+            border: `1px solid ${color}20`,
+            color: color,
           }}
         >
-          {Icon && <Icon size={20} style={{ color }} strokeWidth={2.2} />}
+          {Icon && <Icon size={22} strokeWidth={2.5} />}
         </div>
+      </div>
 
-        {/* Text */}
-        <div className="flex flex-col min-w-0">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            {label}
+      {/* 🔢 Main Value Section */}
+      <div className="relative z-10 flex items-baseline gap-2 mt-2">
+        <h3 className="text-4xl lg:text-5xl font-black text-slate-800 tracking-tighter drop-shadow-sm">
+          {typeof value === "number" ? value.toLocaleString() : value}
+        </h3>
+        {unit && (
+          <span className="text-sm font-bold text-slate-400 mb-1 italic">
+            {unit}
           </span>
+        )}
+      </div>
 
-          <div className="flex items-end gap-1">
-            <span className="text-2xl font-bold text-slate-800 leading-none">
-              {typeof value === "number" ? value.toLocaleString() : value}
-            </span>
-            <span className="text-[11px] text-slate-400 mb-[2px]">
-              {unit}
-            </span>
-          </div>
-        </div>
-
-        {/* Badge */}
+      {/* 🏷️ Footer Section: Description Badge */}
+      <div className="relative z-10 mt-4 flex items-center h-6">
         {description && (
-          <div className="ml-auto">
-            <div
-              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold"
-              style={{
-                background: `${color}15`,
-                color,
-              }}
-            >
-              {description}
-            </div>
+          <div
+            className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black tracking-wide shadow-sm"
+            style={{
+              background: `${color}10`,
+              color: color,
+              border: `1px solid ${color}20`
+            }}
+          >
+            {description}
           </div>
         )}
       </div>
 
-      {/* accent line */}
+      {/* ➖ Accent Line */}
       <div
-        className="absolute bottom-0 left-0 h-[2px] w-full"
+        className="absolute bottom-0 left-0 h-[3px] w-full opacity-60"
         style={{
-          background: `linear-gradient(to right, transparent, ${color}, transparent)`,
+          background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
         }}
       />
     </motion.div>

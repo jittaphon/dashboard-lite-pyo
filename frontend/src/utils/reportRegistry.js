@@ -243,8 +243,7 @@ export const reportStrategies = {
     { i: 'measure-heatmap-percent', x: 0, y: 2, w: 12, h: 10 },
     
     // แถวล่าง: กราฟแท่ง (y: 12)
-    { i: 'risk-distribution-stack', x: 0, y: 12, w: 7, h: 8 },
-    { i: 'mortality-bar-chart', x: 7, y: 12, w: 5, h: 8 }
+    { i: 'mortality-bar-chart', x: 7, y: 12, w: 12, h: 7 }
   ],
   widgets: [
     // --- Card: ผู้ป่วยทั้งหมด ---
@@ -295,24 +294,7 @@ export const reportStrategies = {
       }
     },
 
-    // --- Stacked Bar: สัดส่วนระดับความเสี่ยงรายอำเภอ ---
-    {
-      id: 'risk-distribution-stack',
-      type: 'bar-stack',
-      label: 'สัดส่วนระดับความเสี่ยงแยกรายอำเภอ',
-      transform: (data) => {
-        const ampurMap = {};
-        data.forEach(d => {
-          if (!ampurMap[d.ampur]) ampurMap[d.ampur] = { ampur: d.ampur };
-          if (d.topic.includes('Low Risk ทั้งหมด')) ampurMap[d.ampur].low = Number(d.count) || 0;
-          if (d.topic.includes('Intermediate Risk ทั้งหมด')) ampurMap[d.ampur].inter = Number(d.count) || 0;
-          if (d.topic.includes('High Risk ทั้งหมด')) ampurMap[d.ampur].high = Number(d.count) || 0;
-        });
-        return Object.values(ampurMap); // [ { ampur: 'ปง', low: 10, inter: 5, high: 2 }, ... ]
-      },
-      keys: ['low', 'inter', 'high'],
-      colors: ['#84cc16', '#facc15', '#ef4444'] // เขียว, เหลือง, แดง
-    },
+  
     // ==========================================
     // Widget 1: Heatmap (ของเดิมของคุณ)
     // ==========================================
