@@ -17,6 +17,21 @@ import ExcelJS from "exceljs";
 
 export default function ExcelImportModal({ visible, onCancel, tableId, tableName, columns: dbColumns = [], department, onUpload }) {
 
+  const [summaryData, setSummaryData] = useState(
+  ["รพ.พะเยา", "รพ.เชียงคำ", "รพ.จุน", "รพ.เชียงม่วน", "รพ.ดอกคำใต้", "รพ.ปง", "รพ.แม่ใจ", "รพ.ภูซาง", "รพ.ภูกามยาว"].map(name => ({
+    hospital_name: name,
+    walk_in_count: 0,
+    screening_count: 0
+  }))
+);
+
+// ฟังก์ชันสำหรับอัปเดตค่าในตารางสรุป
+const handleSummaryChange = (index, field, value) => {
+  const newData = [...summaryData];
+  newData[index][field] = parseInt(value) || 0;
+  setSummaryData(newData);
+};
+
   // --- States หลัก ---
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -321,9 +336,15 @@ const handleAiAutoMap = async () => {
       table_id: tableId,
       table_name: tableName,
       department: department,
+      
       import_at: new Date().toISOString(),
       total_records: previewData.length,
       data: previewData.map(({ _uId, ...rest }) => rest),
+
+
+      summary_data: tableName === 'tb_screening_results' ? summaryData : null, 
+      import_date: new Date().toISOString(),
+
     };
 
     try {
@@ -534,16 +555,62 @@ const handleAiAutoMap = async () => {
 
             <div className="flex-1 flex overflow-hidden">
               <div className="w-52 bg-[#f8fafc] border-r border-slate-200 hidden lg:flex flex-col">
-                <div className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Table</div>
-                <div className="px-3">
-                  <div className="flex flex-col gap-2 bg-white px-3 py-3 rounded-2xl border border-emerald-100 shadow-sm">
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-700">
-                        <TableIcon size={14} className="text-emerald-500" />
-                        <span className="truncate">{tableName}</span>
-                    </div>
-                    <div className="text-[9px] text-slate-400 font-mono italic px-6">{tableId}</div>
-                  </div>
+               <div className="shrink-0">
+    <div className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Table</div>
+    <div className="px-3 pb-4">
+      <div className="flex flex-col gap-2 bg-white px-3 py-3 rounded-2xl border border-emerald-100 shadow-sm">
+        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-700">
+          <TableIcon size={14} className="text-emerald-500" />
+          <span className="truncate">{tableName}</span>
+        </div>
+        <div className="text-[9px] text-slate-400 font-mono italic px-6">{tableId}</div>
+      </div>
+    </div>
+  </div>
+
+  {/* 2. ส่วนกลาง: ใส่ flex-1 และ overflow-y-auto เพื่อให้เลื่อนได้เฉพาะส่วนนี้ */}
+  <div className="flex-1 overflow-y-auto px-3 space-y-3 custom-scrollbar">
+    {tableId === 'tb_screening_results' && (
+      <div className="py-2">
+        <div className="flex items-center gap-2 px-3 mb-3 sticky top-0 bg-[#f8fafc] z-10 py-1">
+          <Sparkles size={14} className="text-indigo-500" />
+          <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">Input Hospital Summary</span>
+        </div>
+        
+        <div className="space-y-3">
+          {summaryData.map((item, idx) => (
+            <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors">
+              <div className="text-[10px] font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
+                {item.hospital_name}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[8px] text-slate-400 uppercase font-black block mb-0.5">Walk-in</label>
+                  <input 
+                    type="number" 
+                    className="w-full text-[11px] font-mono border-b border-slate-100 focus:border-emerald-500 outline-none p-0.5 transition-colors"
+                    value={item.walk_in_count}
+                    onChange={(e) => handleSummaryChange(idx, 'walk_in_count', e.target.value)}
+                  />
                 </div>
+                <div>
+                  <label className="text-[8px] text-slate-400 uppercase font-black block mb-0.5">Screening</label>
+                  <input 
+                    type="number" 
+                    className="w-full text-[11px] font-mono border-b border-slate-100 focus:border-indigo-500 outline-none p-0.5 transition-colors"
+                    value={item.screening_count}
+                    onChange={(e) => handleSummaryChange(idx, 'screening_count', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+                
 
                 {/* Status Box */}
                 {file && (
