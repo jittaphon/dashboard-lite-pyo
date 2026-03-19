@@ -1,4 +1,4 @@
-import React from "react";
+import React  ,{useEffect}from "react";
 
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -209,6 +209,14 @@ export default function DepartmentDetailPage() {
   const { departmentKey,year } = useParams();
   const navigate = useNavigate();
   const departments = useDepartmentStore((state) => state.departments);
+  const { fetchDepartments } = useDepartmentStore();
+
+   useEffect(() => {
+    if (year) {
+      fetchDepartments(year);
+    }
+  }, [year]);
+
   const department = departments.find((dept) => dept.key === departmentKey);
 
   if (!department) return null;
