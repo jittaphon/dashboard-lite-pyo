@@ -56,12 +56,12 @@ export const reportStrategies = {
         "ร้อยละการคัดกรอง (CXR)": totalTarget > 0 
           ? Number(((totalCxr / totalTarget) * 100).toFixed(2)) 
           : 0,
-        "ร้อยละ CXR ผิดปกติ": totalCxr > 0 
+        /*"ร้อยละ CXR ผิดปกติ": totalCxr > 0 
           ? Number(((totalAbnormal / totalCxr) * 100).toFixed(2)) 
           : 0,
         "ร้อยละการวินิจฉัย": totalCxr > 0 
           ? Number(((totalDiagnosis / totalCxr) * 100).toFixed(2)) 
-          : 0
+          : 0*/
       };
     });
   } 
@@ -109,12 +109,12 @@ export const reportStrategies = {
         "ร้อยละการคัดกรอง (CXR)": totalTarget > 0 
           ? Number(((totalCxr / totalTarget) * 100).toFixed(2)) 
           : 0,
-        "ร้อยละ CXR ผิดปกติ": totalCxr > 0 
+         /*"ร้อยละ CXR ผิดปกติ": totalCxr > 0 
           ? Number(((totalAbnormal / totalCxr) * 100).toFixed(2)) 
           : 0,
         "ร้อยละการวินิจฉัย": totalCxr > 0 
           ? Number(((totalDiagnosis / totalCxr) * 100).toFixed(2)) 
-          : 0
+          : 0*/
       };
     });
   }

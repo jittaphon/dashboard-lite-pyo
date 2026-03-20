@@ -40,11 +40,10 @@ export default function DynamicChart({ data, title }) {
 
     // กำหนดสีล็อคตามลำดับ: แท่งที่ 1 สีฟ้า, แท่งที่ 2 สีแดง, แท่งที่ 3 สีเหลือง
     const presetColors = [
-      { bg: 'rgba(54, 162, 235, 0.8)', border: 'rgb(54, 162, 235)' },
-      { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgb(255, 99, 132)' },
-      { bg: 'rgba(255, 205, 86, 0.8)', border: 'rgb(255, 205, 86)' },
-    ];
-
+  { bg: 'rgba(34, 197, 94, 0.8)', border: 'rgb(34, 197, 94)' }, // เขียวล้วน
+  { bg: 'rgba(255, 99, 132, 0.8)', border: 'rgb(255, 99, 132)' },
+  { bg: 'rgba(255, 205, 86, 0.8)', border: 'rgb(255, 205, 86)' },
+];
     const datasets = numericKeys.map((key, index) => {
       const color = presetColors[index % presetColors.length];
       return {
