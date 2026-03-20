@@ -16,74 +16,46 @@ public function getTableListOfDiseaseControl()
     try {
         $dbName = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
 
-        // 1. ดึงข้อมูลสรุปของตารางทั้งหมด
         $tables = DB::select("
-            SELECT 
-                TABLE_NAME as table_id, 
-                TABLE_NAME as table_label,
-                TABLE_ROWS as row_count,
-                UPDATE_TIME as modified_date,
-                DATA_LENGTH as data_size,
-                ENGINE as engine_type
+            SELECT TABLE_NAME as table_id, TABLE_NAME as table_label, 
+                   TABLE_ROWS as row_count, UPDATE_TIME as modified_date
             FROM INFORMATION_SCHEMA.TABLES 
             WHERE TABLE_SCHEMA = :db_name
-            ORDER BY UPDATE_TIME DESC, TABLE_NAME ASC
         ", ['db_name' => $dbName]);
 
-        // 2. ดึงรายละเอียด Column ทั้งหมดของ Database นี้ทีเดียวเลย (เพื่อประสิทธิภาพ)
-        $allColumns = DB::select("
-            SELECT 
-                TABLE_NAME,
-                COLUMN_NAME as title,
-                COLUMN_NAME as dataIndex,
-                COLUMN_NAME as `key`,
-                DATA_TYPE as type,
-                IS_NULLABLE as is_nullable,
-                CHARACTER_MAXIMUM_LENGTH as length
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = :db_name
-            ORDER BY TABLE_NAME, ORDINAL_POSITION
-        ", ['db_name' => $dbName]);
+       $allColumns = DB::select("
+    SELECT TABLE_NAME, COLUMN_NAME as `key`, COLUMN_NAME as title,
+           COLUMN_COMMENT as thai_label, 
+           DATA_TYPE as type
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = :db_name
+    ORDER BY TABLE_NAME, ORDINAL_POSITION
+", ['db_name' => $dbName]);
 
-        // จัดกลุ่มคอลัมน์ตามชื่อตาราง
         $columnsByTable = collect($allColumns)->groupBy('TABLE_NAME');
 
         $formattedData = collect($tables)->map(function ($table) use ($columnsByTable) {
-            // ดึงคอลัมน์ที่ตรงกับตารางนี้
             $tableColumns = $columnsByTable->get($table->table_id, collect([]))->map(function($col) {
                 return [
-                    'title' => $col->title,
-                    'dataIndex' => $col->dataIndex,
-                    'key' => $col->key,
+                    'title' => $col->title,        // ยังเป็น English (HN, age) เหมือนเดิม
+                    'dataIndex' => $col->key,     // ยังเป็น English เหมือนเดิม
+                    'key' => $col->key,           // ยังเป็น English เหมือนเดิม
                     'type' => strtoupper($col->type),
-                    'is_nullable' => $col->is_nullable === 'YES'
+                    'thai_label' => $col->thai_label // ส่งไปให้ React ใช้จับคู่กับ Excel
                 ];
             });
 
             return [
                 'table_id' => $table->table_id,
-                'table_label' => $table->table_label,
+                'table_label' => $table->table_label, 
                 'row_count' => (int)$table->row_count,
-                'data_size' => round($table->data_size / 1024, 2) . ' KB',
-                'engine' => $table->engine_type,
-                'modified_date' => $table->modified_date 
-                    ? \Carbon\Carbon::parse($table->modified_date)->addYears(543)->format('d/m/Y') 
-                    : 'ยังไม่มีการเปลี่ยนแปลง',
-                // เพิ่มส่วนนี้เข้าไป
                 'columns' => $tableColumns 
             ];
         });
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $formattedData
-        ]);
-
+        return response()->json(['status' => 'success', 'data' => $formattedData]);
     } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Schema Error: ' . $e->getMessage()
-        ], 500);
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
 }
 public function saveScreeningResults(Request $request)
@@ -143,56 +115,124 @@ public function saveScreeningResults(Request $request)
 }
 public function saveRiskScore(Request $request)
 {
-    $rows = $request->input('data');
+    $rows = $request->input('data'); // ข้อมูลรายบุคคลจาก Excel
+    $summaryRows = $request->input('summary_data'); // ข้อมูลสรุปจาก Form 9 อำเภอ
+    $byear = $request->input('byear'); // ปีเอกสาร (ถ้ามีส่งแยกมา)
 
     if (empty($rows)) {
-        return response()->json(['status' => 'error', 'message' => 'ไม่พบข้อมูลที่ส่งมา'], 400);
+        return response()->json(['status' => 'error', 'message' => 'ไม่พบข้อมูลรายบุคคล'], 400);
     }
 
     try {
         $dbName = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
-        $fullTableName = $dbName . '.tb_risk_score';
+        
+        $tableIndividual = $dbName . '.tb_patient_risk_records';
+        $tableSummary = $dbName . '.tb_hospital_screening_summary'; 
 
-        // 1. ดึงปีงบประมาณจากข้อมูลที่ส่งมา เพื่อใช้ล้างข้อมูลเก่าเฉพาะปีนั้น
-        $byears = collect($rows)->pluck('byear')->unique()->filter()->values()->toArray();
+        // ดึงปีเอกสารจากข้อมูล Excel (สมมติว่า frontend แมป key เป็น 'doc_year' หรือใช้ $byear)
+        $docYears = collect($rows)->pluck('doc_year')->filter()->unique()->values()->toArray();
+        if (empty($docYears) && $byear) {
+            $docYears = [$byear];
+        }
 
         DB::beginTransaction();
 
-        // 2. ล้างข้อมูลเก่า (Replace logic)
-        if (!empty($byears)) {
-            DB::table($fullTableName)
-                ->whereIn('byear', $byears)
-                ->delete();
+        // --- ส่วนที่ 1: จัดการตารางรายบุคคล (Individual Records) ---
+        // ลบข้อมูลเก่าของปีนั้นๆ ออกก่อน (ป้องการการนำเข้าซ้ำแล้วข้อมูลเบิ้ล)
+        if (!empty($docYears)) {
+            DB::table($tableIndividual)->whereIn('doc_year', $docYears)->delete();
         }
 
-        // 3. เตรียมข้อมูล (จัดการเฉพาะค่าว่างเพื่อให้ DB ไม่ Error)
-        $insertData = array_map(function($item) {
-            foreach ($item as $key => $value) {
-                // ถ้าค่าเป็น string ว่าง ให้เปลี่ยนเป็น null เพื่อรองรับ Column ประเภทตัวเลข (Integer/Float)
-                if ($value === "") {
-                    $item[$key] = null;
-                }
-            }
-            return $item;
-        }, $rows);
+        $now = Carbon::now();
+        $individualInsert = [];
 
-        // 4. บันทึกข้อมูลแบบ Chunk (ทีละ 500 รายการ)
-        foreach (array_chunk($insertData, 500) as $chunk) {
-            DB::table($fullTableName)->insert($chunk);
+        foreach ($rows as $row) {
+            // แมปข้อมูลและเปลี่ยนค่าว่างเป็น null, แปลง 1=เลือก ให้เป็น boolean (1 หรือ 0)
+            $individualInsert[] = [
+                'seq_no' => $row['seq_no'] ?? null,
+                'doc_year' => $row['doc_year'] ?? $byear,
+                'province' => $row['province'] ?? null,
+                'hospital' => $row['hospital'] ?? null,
+                'hn' => $row['hn'] ?? null,
+                'tb_no' => $row['tb_no'] ?? null,
+                'age' => isset($row['age']) && $row['age'] !== "" ? (int)$row['age'] : null,
+                'risk_level' => $row['risk_level'] ?? null,
+                'total_score' => isset($row['total_score']) && $row['total_score'] !== "" ? (float)$row['total_score'] : null,
+                
+                // กลุ่มเสี่ยง (1=เลือก นอกนั้น 0)
+                'is_age_over_65' => ($row['is_age_over_65'] ?? 0) == 1 ? 1 : 0,
+                'is_ckd_4_5' => ($row['is_ckd_4_5'] ?? 0) == 1 ? 1 : 0,
+                'is_hiv_cd4_less_200' => ($row['is_hiv_cd4_less_200'] ?? 0) == 1 ? 1 : 0,
+                'is_active_cancer' => ($row['is_active_cancer'] ?? 0) == 1 ? 1 : 0,
+                'is_cirrhosis' => ($row['is_cirrhosis'] ?? 0) == 1 ? 1 : 0,
+                'is_bed_ridden' => ($row['is_bed_ridden'] ?? 0) == 1 ? 1 : 0,
+                'is_dm_hba1c_over_8' => ($row['is_dm_hba1c_over_8'] ?? 0) == 1 ? 1 : 0,
+                'is_alcoholism' => ($row['is_alcoholism'] ?? 0) == 1 ? 1 : 0,
+                'is_copd' => ($row['is_copd'] ?? 0) == 1 ? 1 : 0,
+                'is_bmi_less_18_5' => ($row['is_bmi_less_18_5'] ?? 0) == 1 ? 1 : 0,
+                'is_cxr_extensive' => ($row['is_cxr_extensive'] ?? 0) == 1 ? 1 : 0,
+                'is_consult_doctor' => ($row['is_consult_doctor'] ?? 0) == 1 ? 1 : 0,
+                
+                // ข้อมูลเพิ่มเติม
+                'treatment_method' => $row['treatment_method'] ?? null,
+                'is_lft_tested' => ($row['is_lft_tested'] ?? 0) == 1 ? 1 : 0, // สันนิษฐานว่าเป็นติ๊ก 1=เลือก เช่นกัน
+                'nat2_diplotype' => $row['nat2_diplotype'] ?? null,
+                'dot_status' => $row['dot_status'] ?? null,
+                'treatment_result' => $row['treatment_result'] ?? null,
+                
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        // Insert ทีละ 500 records เพื่อไม่ให้ฐานข้อมูลทำงานหนักเกินไป
+        foreach (array_chunk($individualInsert, 500) as $chunk) {
+            DB::table($tableIndividual)->insert($chunk);
+        }
+
+        // --- ส่วนที่ 2: จัดการตารางสรุป (Hospital Summary) ---
+        if (!empty($summaryRows)) {
+            // ลบข้อมูลสรุปเก่าของปีนั้นๆ ออกก่อน
+            if (!empty($docYears)) {
+                DB::table($tableSummary)->whereIn('doc_year', $docYears)->delete();
+            }
+
+            $summaryInsert = [];
+            $mainYear = $docYears[0] ?? $byear ?? date('Y');
+
+            foreach ($summaryRows as $sRow) {
+                // ข้ามถ้าไม่มีชื่อโรงพยาบาล
+                if (empty($sRow['hospital_name'])) continue;
+
+                $summaryInsert[] = [
+                    'doc_year' => $mainYear,
+                    'hospital_name' => $sRow['hospital_name'],
+                    'walk_in_count' => isset($sRow['walk_in_count']) && $sRow['walk_in_count'] !== "" ? (int)$sRow['walk_in_count'] : 0,
+                    'screening_count' => isset($sRow['screening_count']) && $sRow['screening_count'] !== "" ? (int)$sRow['screening_count'] : 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+            
+            if (!empty($summaryInsert)) {
+                DB::table($tableSummary)->insert($summaryInsert);
+            }
         }
 
         DB::commit();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'บันทึกข้อมูลเรียบร้อยแล้ว จำนวน ' . count($insertData) . ' รายการ'
+            'message' => 'บันทึกข้อมูลผู้ป่วย ' . count($individualInsert) . ' รายการ เรียบร้อยแล้ว',
+            'summary_saved' => !empty($summaryInsert)
         ]);
 
     } catch (\Exception $e) {
         DB::rollBack();
         return response()->json([
             'status' => 'error', 
-            'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()
+            'message' => 'เกิดข้อผิดพลาด: ' . $e->getMessage(),
+            'line' => $e->getLine() // เอาไว้ดีบักว่าพังบรรทัดไหน
         ], 500);
     }
 }

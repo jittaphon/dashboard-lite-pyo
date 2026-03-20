@@ -24,6 +24,11 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
     screening_count: 0
   }))
 );
+  
+
+
+console.log("Initial Summary Data State:", onUpload);
+
 
 // ฟังก์ชันสำหรับอัปเดตค่าในตารางสรุป
 const handleSummaryChange = (index, field, value) => {
@@ -90,233 +95,188 @@ const handleSummaryChange = (index, field, value) => {
     setUploadError(null);
   };
 
-  // ==========================================
-  // 1. ฟังก์ชันสร้างตาราง (ใช้ร่วมกันระหว่างแบบปกติและแบบ AI)
-  // ==========================================
-  const generateTableData = (mappingObject, headers, rows) => {
 
-    console.log("Mapping Object:", mappingObject);
-    console.log("Excel Headers:", headers);
-    console.log("Database Columns:", dbColumns);
-    // mappingObject รูปแบบ: { "db_key": "ชื่อคอลัมน์ใน Excel" }
-    
-    // หา Index ของแต่ละคอลัมน์ Excel
-    const excelHeaderMap = {}; 
-    headers.forEach(h => {
-        excelHeaderMap[h.name] = h.index;
-    });
 
-    // สร้าง Display Columns
-    let finalColumns = dbColumns.map(col => {
-        // หาชื่อที่ Map มา (ถ้าไม่มีให้ลองเทียบชื่อตรงๆ)
-        const mappedExcelName = mappingObject[col.key] || col.title;
-        const excelColIndex = excelHeaderMap[mappedExcelName];
-        
-        return {
-            ...col,
-            isSystem: false,
-            isMatched: !!excelColIndex,
-            excelIndex: excelColIndex,
-            mappedName: mappedExcelName // เก็บชื่อ Excel ที่ Match ไว้ดู
-        };
-    });
-
-    const now = new Date();
-    const dbTimestamp = now.toISOString().slice(0, 19).replace('T', ' ');
-
-    finalColumns.push(
-        {
-            title: "วันที่อัปเดต (System)",
-            key: "update_at",
-            dataIndex: "update_at",
-            type: 'DATETIME',
-            isSystem: true,
-            isMatched: true
-        }
-    );
-
-    // แปลงข้อมูลแถวตาม Columns ใหม่
-    let parsedData = [];
-    rows.forEach((rowObj, index) => {
-        let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 9)}` };
-        
-        finalColumns.forEach((col) => {
-            if (col.isSystem) {
-                if (col.key === "col_import_date" || col.key === "update_at") rowData[col.key] = dbTimestamp;
-                if (col.key === "col_department") rowData[col.key] = department || "N/A";
-            } else {
-                if (col.excelIndex) {
-                    let value = rowObj.values[col.excelIndex];
-                    if (value && typeof value === 'object') {
-                        if (value.result !== undefined) value = value.result;
-                        else if (value.richText) value = value.richText.map(rt => rt.text).join("");
-                        else if (value instanceof Date) value = value.toISOString().split('T')[0];
-                    }
-                    rowData[col.dataIndex || col.key] = (value !== null && value !== undefined) ? value.toString() : "";
-                } else {
-                    rowData[col.dataIndex || col.key] = ""; 
-                }
-            }
-        });
-        parsedData.push(rowData);
-    });
-
-    setDisplayColumns(finalColumns);
-    setPreviewData(parsedData);
+const generateTableData = (mappingObject, headers, rows) => {
+  // --- 1. ฟังก์ชันช่วยล้างค่า String (Logic เดิม) ---
+  const normalize = (str) => {
+    if (!str) return "";
+    return str.toString()
+      .trim()
+      .replace(/\s+/g, '') // ลบช่องว่างทั้งหมด
+      .toLowerCase();
   };
 
+  // --- [DEBUG] เตรียมตัวแปรสำหรับเก็บ Log ---
+  const debugExcelHeaders = [];
+  const debugMappingResult = [];
 
-  // ==========================================
-  // 2. เมื่อผู้ใช้อัปโหลดไฟล์ (Exact Match ก่อน)
-  // ==========================================
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (!selectedFile) return;
-    
-    const isExcel = selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || selectedFile.type === 'application/vnd.ms-excel';
-    if (!isExcel) {
-      setUploadError('กรุณาอัปโหลดไฟล์นามสกุล .xls หรือ .xlsx เท่านั้น');
-      return;
+  const excelHeaderMap = {}; 
+  headers.forEach(h => {
+    const cleanName = normalize(h.name);
+    if (cleanName) {
+      excelHeaderMap[cleanName] = { index: h.index, originalName: h.name };
+      // เก็บข้อมูลสำหรับ Log
+      debugExcelHeaders.push({
+        "Original Excel": h.name,
+        "Normalized": cleanName,
+        "Col Index": h.index
+      });
+    }
+  });
+
+  let finalColumns = dbColumns.map(col => {
+    let matchedExcelCol = null;
+
+    const normKey = normalize(col.key);
+    const normThai = normalize(col.thai_label);
+
+    if (excelHeaderMap[normKey]) {
+      matchedExcelCol = excelHeaderMap[normKey];
+    } else if (normThai && excelHeaderMap[normThai]) {
+      matchedExcelCol = excelHeaderMap[normThai];
     }
 
-    setIsProcessing(true);
+    const systemFields = ['id', 'created_at', 'updated_at'];
+    const isSystemField = systemFields.includes(col.key);
 
-    setTimeout(async () => {
-      try {
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(arrayBuffer);
-        const worksheet = workbook.worksheets[0];
+    // --- [DEBUG] เก็บข้อมูลการ Match ราย Column ---
+    debugMappingResult.push({
+      "DB Key": col.key,
+      "DB Thai Label": col.thai_label || "-",
+      "Normalized DB (Thai)": normThai,
+      "Status": isSystemField ? "⚙️ SYSTEM" : (!!matchedExcelCol ? "✅ FOUND" : "❌ MISSING"),
+      "Matched With": matchedExcelCol ? matchedExcelCol.originalName : "-"
+    });
 
-        if (!worksheet || worksheet.rowCount === 0) {
-          throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+    return {
+      ...col,
+      isSystem: isSystemField,
+      isMatched: isSystemField ? true : !!matchedExcelCol,
+      excelIndex: matchedExcelCol ? matchedExcelCol.index : null,
+      mappedName: matchedExcelCol ? matchedExcelCol.originalName : (col.thai_label || col.key)
+    };
+  });
+
+  // ==========================================
+  // 🔥 [CONSOLE LOG] ส่วนที่เพิ่มเข้ามาเพื่อตรวจสอบ
+  // ==========================================
+  console.group("🔍 ตรวจสอบการ Match Column (Excel vs Database)");
+  
+  console.log("1. หัวตารางที่ตรวจพบในไฟล์ Excel:");
+  console.table(debugExcelHeaders);
+  
+  console.log("2. สรุปการจับคู่กับ Database:");
+  console.table(debugMappingResult);
+
+  const missing = debugMappingResult.filter(r => r.Status === "❌ MISSING");
+  if (missing.length > 0) {
+    console.warn("⚠️ คอลัมน์ที่หายไป (ไม่พบใน Excel):", missing.map(m => m["DB Key"]));
+  } else {
+    console.log("🎉 ทุกคอลัมน์ Match สำเร็จ!");
+  }
+  
+  console.groupEnd();
+  // ==========================================
+
+  // --- 2. ส่วนการ Gen ข้อมูล (Logic เดิมทั้งหมด) ---
+  const dbTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  let parsedData = rows.map((rowObj, index) => {
+    let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 5)}` };
+    
+    finalColumns.forEach((col) => {
+      if (col.isSystem) {
+        if (col.key === "updated_at" || col.key === "created_at") rowData[col.key] = dbTimestamp;
+        else if (col.key === "id") rowData[col.key] = null; 
+      } else {
+        if (col.excelIndex !== null) {
+          let value = rowObj.values[col.excelIndex];
+          if (value && typeof value === 'object') {
+             if (value.result !== undefined) value = value.result;
+             else if (value.richText) value = value.richText.map(rt => rt.text).join("");
+             else if (value instanceof Date) value = value.toISOString().split('T')[0];
+          }
+          rowData[col.dataIndex || col.key] = (value !== null && value !== undefined) ? value.toString().trim() : "";
+        } else {
+          rowData[col.dataIndex || col.key] = ""; 
         }
-
-        // เก็บ Headers ดิบ
-        const headers = [];
-        worksheet.getRow(1).eachCell((cell, colNumber) => {
-            if (cell.value) {
-                headers.push({ name: cell.value.toString().trim(), index: colNumber });
-            }
-        });
-        setRawHeaders(headers);
-
-        // เก็บ Rows ดิบ
-        const rows = [];
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 1) { 
-                rows.push({ rowIndex: rowNumber, values: row.values });
-            }
-        });
-        setRawRows(rows);
-
-        // ทำ Exact Match Map เริ่มต้น
-        const initialMap = {};
-        dbColumns.forEach(c => { initialMap[c.key] = c.title; });
-
-        generateTableData(initialMap, headers, rows);
-        
-        setFile(selectedFile);
-        setCurrentPage(1);
-      } catch (error) {
-        console.error(error);
-        setUploadError(error.message || "เกิดข้อผิดพลาดในการอ่านไฟล์");
-      } finally {
-        setIsProcessing(false);
       }
-    }, 150);
-  };
-const handleAiAutoMap = async () => {
-    setIsAiMapping(true);
+    });
+    return rowData;
+  });
 
-    const aumpurList = [
-        { name: 'เชียงม่วน', index: 4 },
-        { name: 'ดอกคำใต้', index: 5 },
-        { name: 'จุน', index: 6 },
-        { name: 'เชียงคำ', index: 7 },
-        { name: 'เมืองพะเยา', index: 8 },
-        { name: 'ปง', index: 9 },
-        { name: 'ภูซาง', index: 10 },
-        { name: 'ภูกามยาว', index: 11 },
-        { name: 'แม่ใจ', index: 12 }
-    ];
+  setDisplayColumns(finalColumns);
+  setPreviewData(parsedData);
+};
+// 2. Handler สำหรับการอ่านไฟล์ (เน้นหา Header Row ที่ถูกต้อง)
+// ==========================================
+const handleFileChange = (e) => {
+  const selectedFile = e.target.files[0];
+  if (!selectedFile) return;
 
-    const now = new Date();
-    const dbTimestamp = now.toISOString().slice(0, 19).replace('T', ' ');
-    const currentByear = 2569; // เพิ่มปีงบประมาณตาม dbColumns index 4
+  setIsProcessing(true);
 
+  setTimeout(async () => {
     try {
-        let finalData = [];
-        let currentTopicType = "";
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
 
-        rawRows.forEach((row) => {
-            const values = row.values || [];
+      // ค้นหาบรรทัดที่เป็นหัวตาราง (หาจาก 15 แถวแรก)
+      let headerRowNumber = 1;
+      for (let i = 1; i <= 15; i++) {
+        const rowValues = worksheet.getRow(i).values.map(v => v?.toString().trim());
+        if (rowValues.includes("ลำดับ") || rowValues.includes("HN") || rowValues.includes("ปีเอกสาร")) {
+          headerRowNumber = i;
+          break;
+        }
+      }
 
-            // 1. จัดการ Topic Type
-            if (values[1] && (!values[2] || values[2] === "")) {
-                const rawType = values[1];
-                currentTopicType = (typeof rawType === 'object' 
-                    ? (rawType.richText ? rawType.richText.map(t => t.text).join("") : (rawType.text || JSON.stringify(rawType))) 
-                    : rawType).toString().trim();
-                return;
-            }
+      const headers = [];
+      const currentRow = worksheet.getRow(headerRowNumber);
+      const nextRow = worksheet.getRow(headerRowNumber + 1);
 
-            // 2. จัดการหัวข้อย่อย และแตกแถวรายอำเภอ
-            if (values[2]) {
-                const rawTopic = values[2];
-                const topicName = (typeof rawTopic === 'object' 
-                    ? (rawTopic.richText ? rawTopic.richText.map(t => t.text).join("") : (rawTopic.text || JSON.stringify(rawTopic))) 
-                    : rawTopic).toString().trim();
-                
-                aumpurList.forEach((amp) => {
-                    const cell = values[amp.index];
-                    
-                    // --- หัวใจสำคัญ: บังคับให้เป็น 0 ถ้าไม่มีค่า ---
-                    let finalCount = 0; 
-                    if (cell !== null && cell !== undefined && cell !== "") {
-                        if (typeof cell === 'object') {
-                            // ถ้าเป็นสูตร เช็คผลลัพธ์ (result)
-                            const res = cell.result;
-                            finalCount = (res !== undefined && res !== null && res !== "") ? Number(res) : 0;
-                        } else {
-                            // ถ้าเป็นค่าปกติ
-                            finalCount = Number(cell);
-                        }
-                    }
-                    // ถ้าผลลัพธ์สุดท้ายไม่ใช่ตัวเลข (NaN) ให้เป็น 0
-                    if (isNaN(finalCount)) finalCount = 0;
-
-                    finalData.push({
-                        _uId: `row-${Math.random().toString(36).substr(2, 9)}`,
-                        topic: topicName,           // ตรงกับ dbColumns[0]
-                        topic_type: currentTopicType, // ตรงกับ dbColumns[1]
-                        ampur: amp.name,            // แก้จาก aumpur เป็น ampur (ตรงกับ dbColumns[2])
-                        count: finalCount,          // ตรงกับ dbColumns[3] (ตอนนี้จะเป็น 0 ไม่ใช่ null)
-                        byear: currentByear,        // เพิ่มให้ตรงกับ dbColumns[4]
-                        update_at: dbTimestamp      // ตรงกับ dbColumns[5]
-                    });
-                });
-            }
-        });
-
-        // ดู Log ข้อมูลแถวแรกที่ส่งไป Preview
-        console.log("------------------------------------------");
-        console.log("CHECK DATA KEY & VALUE:", finalData[0]); 
-        console.log("------------------------------------------");
-
-        setPreviewData([...finalData]); // ใช้ Spread เพื่อบังคับ Re-render
+      currentRow.eachCell((cell, colNumber) => {
+        let name = cell.value?.toString().trim();
         
-        setDisplayColumns(dbColumns.map(c => ({ 
-            ...c, 
-            isMatched: true 
-        })));
+        // จัดการ Header แบบซ้อน (Merged Cells) ตามรูปไฟล์
+        if (!name || name === "คะแนนรวม" || name.includes("ข้อมูลเพิ่มเติม")) {
+          const subName = nextRow.getCell(colNumber).value?.toString().trim();
+          if (subName) name = subName;
+        }
+        if (name) headers.push({ name, index: colNumber });
+      });
+
+      // ดึงข้อมูล Row โดยเริ่มจากบรรทัดถัดไปของ Header (พิจารณา Header 2 ชั้น)
+      const rows = [];
+      const dataStartRow = headerRowNumber + 2; // จากรูป Excel น่าจะเริ่มข้อมูลจริงที่บรรทัด Header + 2
+      
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber >= dataStartRow) {
+          rows.push({ rowIndex: rowNumber, values: row.values });
+        }
+      });
+
+      setRawHeaders(headers);
+      setRawRows(rows);
+
+      const initialMap = {};
+      dbColumns.forEach(c => { initialMap[c.key] = c.title || c.key; });
+
+      generateTableData(initialMap, headers, rows);
+      setFile(selectedFile);
 
     } catch (error) {
-        console.error("AI Mapping Error:", error);
+      console.error(error);
+      setUploadError("Error: " + error.message);
     } finally {
-        setIsAiMapping(false);
+      setIsProcessing(false);
     }
+  }, 200);
 };
+
 
 
   const deleteRow = (actualIndex) => {
@@ -570,7 +530,7 @@ const handleAiAutoMap = async () => {
 
   {/* 2. ส่วนกลาง: ใส่ flex-1 และ overflow-y-auto เพื่อให้เลื่อนได้เฉพาะส่วนนี้ */}
   <div className="flex-1 overflow-y-auto px-3 space-y-3 custom-scrollbar">
-    {tableId === 'tb_screening_results' && (
+    {tableId === 'tb_patient_risk_records' && (
       <div className="py-2">
         <div className="flex items-center gap-2 px-3 mb-3 sticky top-0 bg-[#f8fafc] z-10 py-1">
           <Sparkles size={14} className="text-indigo-500" />
