@@ -93,78 +93,152 @@ const handleSummaryChange = (index, field, value) => {
   // ==========================================
   // 1. ฟังก์ชันสร้างตาราง (ใช้ร่วมกันระหว่างแบบปกติและแบบ AI)
   // ==========================================
-  const generateTableData = (mappingObject, headers, rows) => {
+const generateTableData = (mappingObject, headers, rows) => {
 
-    console.log("Mapping Object:", mappingObject);
-    console.log("Excel Headers:", headers);
-    console.log("Database Columns:", dbColumns);
-    // mappingObject รูปแบบ: { "db_key": "ชื่อคอลัมน์ใน Excel" }
-    
-    // หา Index ของแต่ละคอลัมน์ Excel
-    const excelHeaderMap = {}; 
-    headers.forEach(h => {
-        excelHeaderMap[h.name] = h.index;
-    });
+  const SYSTEM_COLUMNS = new Set(["id", "created_at", "updated_at", "update_at"]);
 
-    // สร้าง Display Columns
-    let finalColumns = dbColumns.map(col => {
-        // หาชื่อที่ Map มา (ถ้าไม่มีให้ลองเทียบชื่อตรงๆ)
-        const mappedExcelName = mappingObject[col.key] || col.title;
-        const excelColIndex = excelHeaderMap[mappedExcelName];
-        
-        return {
-            ...col,
-            isSystem: false,
-            isMatched: !!excelColIndex,
-            excelIndex: excelColIndex,
-            mappedName: mappedExcelName // เก็บชื่อ Excel ที่ Match ไว้ดู
-        };
-    });
-
-    const now = new Date();
-    const dbTimestamp = now.toISOString().slice(0, 19).replace('T', ' ');
-
-    finalColumns.push(
-        {
-            title: "วันที่อัปเดต (System)",
-            key: "update_at",
-            dataIndex: "update_at",
-            type: 'DATETIME',
-            isSystem: true,
-            isMatched: true
-        }
-    );
-
-    // แปลงข้อมูลแถวตาม Columns ใหม่
-    let parsedData = [];
-    rows.forEach((rowObj, index) => {
-        let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 9)}` };
-        
-        finalColumns.forEach((col) => {
-            if (col.isSystem) {
-                if (col.key === "col_import_date" || col.key === "update_at") rowData[col.key] = dbTimestamp;
-                if (col.key === "col_department") rowData[col.key] = department || "N/A";
-            } else {
-                if (col.excelIndex) {
-                    let value = rowObj.values[col.excelIndex];
-                    if (value && typeof value === 'object') {
-                        if (value.result !== undefined) value = value.result;
-                        else if (value.richText) value = value.richText.map(rt => rt.text).join("");
-                        else if (value instanceof Date) value = value.toISOString().split('T')[0];
-                    }
-                    rowData[col.dataIndex || col.key] = (value !== null && value !== undefined) ? value.toString() : "";
-                } else {
-                    rowData[col.dataIndex || col.key] = ""; 
-                }
-            }
-        });
-        parsedData.push(rowData);
-    });
-
-    setDisplayColumns(finalColumns);
-    setPreviewData(parsedData);
+  const normalizeStr = (str) => {
+    if (!str) return "";
+    return str
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/&gt;/g, ">")
+      .replace(/&lt;/g, "<")
+      .replace(/&amp;/g, "&")
+      .replace(/\u003E/g, ">")
+      .replace(/\u003C/g, "<")
+      .replace(/\u003c/g, "<")
+      .replace(/\u003e/g, ">");
   };
 
+  const excelHeaderMap = {};
+  const excelHeaderMapNormalized = {};
+
+  headers.forEach(h => {
+    if (h.name === undefined || h.name === null) return; // ข้าม undefined
+    excelHeaderMap[h.name.trim()] = h.index;
+    excelHeaderMap[h.name.trim().toLowerCase()] = h.index;
+    excelHeaderMapNormalized[normalizeStr(h.name)] = h.index;
+  });
+
+  const resolveExcelIndex = (col) => {
+    const explicitMapped = mappingObject[col.key];
+    if (explicitMapped) {
+      const idx = excelHeaderMap[explicitMapped.trim()]
+                ?? excelHeaderMapNormalized[normalizeStr(explicitMapped)];
+      if (idx !== undefined) return idx;
+    }
+    if (col.thai_label) {
+      const idx = excelHeaderMap[col.thai_label.trim()]
+                ?? excelHeaderMapNormalized[normalizeStr(col.thai_label)];
+      if (idx !== undefined) return idx;
+    }
+    const idxEn = excelHeaderMap[col.key.toLowerCase()]
+                ?? excelHeaderMapNormalized[normalizeStr(col.key)];
+    if (idxEn !== undefined) return idxEn;
+    if (col.title) {
+      const idx = excelHeaderMap[col.title.trim()]
+                ?? excelHeaderMap[col.title.trim().toLowerCase()]
+                ?? excelHeaderMapNormalized[normalizeStr(col.title)];
+      if (idx !== undefined) return idx;
+    }
+    return undefined;
+  };
+
+  // ===== DEBUG LOG =====
+  console.group("🔍 Column Matching Debug");
+  console.log("📋 Excel headers:", headers.map(h => `[${h.index}] "${h.name}"`));
+  console.log("📋 จำนวน headers:", headers.length);
+  console.log("🗂️ excelHeaderMapNormalized keys:", Object.keys(excelHeaderMapNormalized));
+  console.log("🎯 mappingObject:", mappingObject);
+  console.log("─────────────────────────────────────");
+
+  const debugRows = [];
+  dbColumns
+    .filter(col => !SYSTEM_COLUMNS.has(col.key))
+    .forEach(col => {
+      const explicitMapped = mappingObject[col.key];
+      const byExplicit = explicitMapped
+        ? (excelHeaderMap[explicitMapped.trim()] ?? excelHeaderMapNormalized[normalizeStr(explicitMapped)])
+        : undefined;
+      const byThai = col.thai_label
+        ? (excelHeaderMap[col.thai_label.trim()] ?? excelHeaderMapNormalized[normalizeStr(col.thai_label)])
+        : undefined;
+      const byEnglish = excelHeaderMap[col.key.toLowerCase()] ?? excelHeaderMapNormalized[normalizeStr(col.key)];
+      const byTitle = col.title
+        ? (excelHeaderMap[col.title.trim()] ?? excelHeaderMap[col.title.trim().toLowerCase()] ?? excelHeaderMapNormalized[normalizeStr(col.title)])
+        : undefined;
+      const resolved = byExplicit ?? byThai ?? byEnglish ?? byTitle;
+
+      debugRows.push({
+        "status"          : resolved !== undefined ? "✅" : "❌",
+        "db_key"          : col.key,
+        "thai_label"      : col.thai_label || "-",
+        "thai_normalized" : normalizeStr(col.thai_label),
+        "byExplicit"      : byExplicit  ?? "-",
+        "byThai"          : byThai      ?? "-",
+        "byEnglish"       : byEnglish   ?? "-",
+        "byTitle"         : byTitle     ?? "-",
+        "resolved_index"  : resolved    ?? "❌ MISSING",
+      });
+    });
+
+  console.table(debugRows);
+  console.groupEnd();
+  // ===== END DEBUG =====
+
+  const now = new Date();
+  const dbTimestamp = now.toISOString().slice(0, 19).replace("T", " ");
+
+  let finalColumns = dbColumns
+    .filter(col => !SYSTEM_COLUMNS.has(col.key))
+    .map(col => {
+      const excelIndex = resolveExcelIndex(col);
+      return { ...col, isSystem: false, isMatched: !!excelIndex, excelIndex };
+    });
+
+  finalColumns.push(
+    { key: "created_at", dataIndex: "created_at", title: "created_at", type: "TIMESTAMP", isSystem: true, isMatched: true },
+    { key: "updated_at", dataIndex: "updated_at", title: "updated_at", type: "TIMESTAMP", isSystem: true, isMatched: true }
+  );
+
+  let parsedData = rows.map((rowObj, index) => {
+    let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 9)}` };
+
+    finalColumns.forEach(col => {
+      if (col.isSystem) {
+        if (col.key === "created_at" || col.key === "updated_at") rowData[col.key] = dbTimestamp;
+      } else if (col.excelIndex !== undefined) {
+        let value = rowObj.values[col.excelIndex];
+
+        if (value === undefined) value = null; // แปลง undefined → null
+
+        if (value && typeof value === "object") {
+          if (value.result !== undefined)  value = value.result;
+          else if (value.richText)         value = value.richText.map(rt => rt.text).join("");
+          else if (value instanceof Date)  value = value.toISOString().split("T")[0];
+        }
+
+        if (col.type === "TINYINT") {
+          value = (
+            value === true || value === 1 || value === "1" ||
+            value === "true" || value === "ใช่" || value === "yes"
+          ) ? 1 : 0;
+        }
+
+        rowData[col.dataIndex || col.key] = value !== null ? value.toString() : "";
+      } else {
+        rowData[col.dataIndex || col.key] = "";
+      }
+    });
+
+    return rowData;
+  });
+
+  setDisplayColumns(finalColumns);
+  setPreviewData(parsedData);
+};
 
   // ==========================================
   // 2. เมื่อผู้ใช้อัปโหลดไฟล์ (Exact Match ก่อน)
@@ -226,97 +300,6 @@ const handleSummaryChange = (index, field, value) => {
       }
     }, 150);
   };
-const handleAiAutoMap = async () => {
-    setIsAiMapping(true);
-
-    const aumpurList = [
-        { name: 'เชียงม่วน', index: 4 },
-        { name: 'ดอกคำใต้', index: 5 },
-        { name: 'จุน', index: 6 },
-        { name: 'เชียงคำ', index: 7 },
-        { name: 'เมืองพะเยา', index: 8 },
-        { name: 'ปง', index: 9 },
-        { name: 'ภูซาง', index: 10 },
-        { name: 'ภูกามยาว', index: 11 },
-        { name: 'แม่ใจ', index: 12 }
-    ];
-
-    const now = new Date();
-    const dbTimestamp = now.toISOString().slice(0, 19).replace('T', ' ');
-    const currentByear = 2569; // เพิ่มปีงบประมาณตาม dbColumns index 4
-
-    try {
-        let finalData = [];
-        let currentTopicType = "";
-
-        rawRows.forEach((row) => {
-            const values = row.values || [];
-
-            // 1. จัดการ Topic Type
-            if (values[1] && (!values[2] || values[2] === "")) {
-                const rawType = values[1];
-                currentTopicType = (typeof rawType === 'object' 
-                    ? (rawType.richText ? rawType.richText.map(t => t.text).join("") : (rawType.text || JSON.stringify(rawType))) 
-                    : rawType).toString().trim();
-                return;
-            }
-
-            // 2. จัดการหัวข้อย่อย และแตกแถวรายอำเภอ
-            if (values[2]) {
-                const rawTopic = values[2];
-                const topicName = (typeof rawTopic === 'object' 
-                    ? (rawTopic.richText ? rawTopic.richText.map(t => t.text).join("") : (rawTopic.text || JSON.stringify(rawTopic))) 
-                    : rawTopic).toString().trim();
-                
-                aumpurList.forEach((amp) => {
-                    const cell = values[amp.index];
-                    
-                    // --- หัวใจสำคัญ: บังคับให้เป็น 0 ถ้าไม่มีค่า ---
-                    let finalCount = 0; 
-                    if (cell !== null && cell !== undefined && cell !== "") {
-                        if (typeof cell === 'object') {
-                            // ถ้าเป็นสูตร เช็คผลลัพธ์ (result)
-                            const res = cell.result;
-                            finalCount = (res !== undefined && res !== null && res !== "") ? Number(res) : 0;
-                        } else {
-                            // ถ้าเป็นค่าปกติ
-                            finalCount = Number(cell);
-                        }
-                    }
-                    // ถ้าผลลัพธ์สุดท้ายไม่ใช่ตัวเลข (NaN) ให้เป็น 0
-                    if (isNaN(finalCount)) finalCount = 0;
-
-                    finalData.push({
-                        _uId: `row-${Math.random().toString(36).substr(2, 9)}`,
-                        topic: topicName,           // ตรงกับ dbColumns[0]
-                        topic_type: currentTopicType, // ตรงกับ dbColumns[1]
-                        ampur: amp.name,            // แก้จาก aumpur เป็น ampur (ตรงกับ dbColumns[2])
-                        count: finalCount,          // ตรงกับ dbColumns[3] (ตอนนี้จะเป็น 0 ไม่ใช่ null)
-                        byear: currentByear,        // เพิ่มให้ตรงกับ dbColumns[4]
-                        update_at: dbTimestamp      // ตรงกับ dbColumns[5]
-                    });
-                });
-            }
-        });
-
-        // ดู Log ข้อมูลแถวแรกที่ส่งไป Preview
-        console.log("------------------------------------------");
-        console.log("CHECK DATA KEY & VALUE:", finalData[0]); 
-        console.log("------------------------------------------");
-
-        setPreviewData([...finalData]); // ใช้ Spread เพื่อบังคับ Re-render
-        
-        setDisplayColumns(dbColumns.map(c => ({ 
-            ...c, 
-            isMatched: true 
-        })));
-
-    } catch (error) {
-        console.error("AI Mapping Error:", error);
-    } finally {
-        setIsAiMapping(false);
-    }
-};
 
 
   const deleteRow = (actualIndex) => {
@@ -331,23 +314,28 @@ const handleAiAutoMap = async () => {
 
     setIsUploading(true);
     setUploadProgress(0);
-
-    const finalPayload = {
+  const finalPayload = {
       table_id: tableId,
       table_name: tableName,
       department: department,
-      
       import_at: new Date().toISOString(),
       total_records: previewData.length,
       data: previewData.map(({ _uId, ...rest }) => rest),
-
-
-      summary_data: tableName === 'tb_screening_results' ? summaryData : null, 
+      summary_data: tableName === 'tb_screening_results' ? summaryData : null,
       import_date: new Date().toISOString(),
-
     };
 
-    try {
+    // ===== DEBUG LOG =====
+    console.group("📦 Final Payload Preview");
+    console.log("table_id:", finalPayload.table_id);
+    console.log("table_name:", finalPayload.table_name);
+    console.log("total_records:", finalPayload.total_records);
+    console.log("summary_data:", finalPayload.summary_data);
+    console.log("data (first 2 rows):", finalPayload.data.slice(0, 2));
+    console.log("🔍 full payload:", finalPayload);
+    console.groupEnd();
+
+    /*try {
       const response = await onUpload(finalPayload);
 
       if (response.status === 200 || response.data?.success) {
@@ -366,7 +354,7 @@ const handleAiAutoMap = async () => {
       setUploadError(err.message || "เกิดข้อผิดพลาดในการนำเข้าข้อมูล");
     } finally {
       setIsUploading(false);
-    }
+    }*/
   };
 
   const downloadTemplate = async () => {
@@ -570,7 +558,7 @@ const handleAiAutoMap = async () => {
 
   {/* 2. ส่วนกลาง: ใส่ flex-1 และ overflow-y-auto เพื่อให้เลื่อนได้เฉพาะส่วนนี้ */}
   <div className="flex-1 overflow-y-auto px-3 space-y-3 custom-scrollbar">
-    {tableId === 'tb_screening_results' && (
+    {tableId === 'tb_patient_risk_records' && (
       <div className="py-2">
         <div className="flex items-center gap-2 px-3 mb-3 sticky top-0 bg-[#f8fafc] z-10 py-1">
           <Sparkles size={14} className="text-indigo-500" />
@@ -680,15 +668,15 @@ const handleAiAutoMap = async () => {
                                 </div>
                               )}
                             </div>
-                            <div className="px-4 py-2 flex flex-col gap-1.5">
-                              <div className="flex justify-between items-center text-[9px] font-bold tracking-tight">
-                                <span className={col.isSystem ? "text-emerald-700" : (col.isMatched ? (isMappedByAi ? "text-indigo-600" : "text-emerald-600") : "text-orange-600")}>
-                                  {col.isSystem ? "SYSTEM GENERATED" : (col.isMatched ? (isMappedByAi ? `AI: [${col.mappedName}]` : "MAPPED SUCCESS") : "COLUMN MISSING")}
-                                </span>
-                                <span className="text-slate-300 font-mono">{col.type}</span>
-                              </div>
-                              <div className={`h-1.5 w-full rounded-full ${col.isSystem ? 'bg-emerald-600' : (col.isMatched ? (isMappedByAi ? 'bg-indigo-500' : 'bg-emerald-500') : 'bg-orange-400')}`} />
-                            </div>
+                           <div className="px-4 py-2 flex flex-col gap-1.5">
+  <div className="flex justify-between items-center text-[9px] font-bold tracking-tight">
+    <span className={col.isSystem ? "text-emerald-700" : (col.isMatched ? "text-emerald-600" : "text-orange-600")}>
+      {col.isSystem ? "SYSTEM GENERATED" : (col.isMatched ? "MAPPED SUCCESS" : "COLUMN MISSING")}
+    </span>
+    <span className="text-slate-300 font-mono">{col.type}</span>
+  </div>
+  <div className={`h-1.5 w-full rounded-full ${col.isSystem ? 'bg-emerald-600' : (col.isMatched ? 'bg-emerald-500' : 'bg-orange-400')}`} />
+</div>
                           </div>
                         </th>
                       )})}
