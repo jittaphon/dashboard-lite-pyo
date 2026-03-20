@@ -321,10 +321,11 @@ const generateTableData = (mappingObject, headers, rows) => {
       import_at: new Date().toISOString(),
       total_records: previewData.length,
       data: previewData.map(({ _uId, ...rest }) => rest),
-      summary_data: tableName === 'tb_screening_results' ? summaryData : null,
+      summary_data: tableId === 'tb_patient_risk_records' ? summaryData : null,
       import_date: new Date().toISOString(),
     };
 
+    console
     // ===== DEBUG LOG =====
     console.group("📦 Final Payload Preview");
     console.log("table_id:", finalPayload.table_id);
