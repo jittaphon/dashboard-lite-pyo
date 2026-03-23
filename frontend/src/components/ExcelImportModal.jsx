@@ -95,145 +95,147 @@ const handleSummaryChange = (index, field, value) => {
   // ==========================================
 const generateTableData = (mappingObject, headers, rows) => {
 
-  const SYSTEM_COLUMNS = new Set(["id", "created_at", "updated_at", "update_at"]);
+  // 🔧 normalize แรง (กัน \n, space, symbol)
+ const normalize = (s) => {
+  if (!s) return "";
 
-  const normalizeStr = (str) => {
-    if (!str) return "";
-    return str
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .replace(/&gt;/g, ">")
-      .replace(/&lt;/g, "<")
-      .replace(/&amp;/g, "&")
-      .replace(/\u003E/g, ">")
-      .replace(/\u003C/g, "<")
-      .replace(/\u003c/g, "<")
-      .replace(/\u003e/g, ">");
-  };
+  return s
+    .toString()
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/≤/g, "<=")
+    .replace(/≥/g, ">=")
+    .replace(/\s*([<>+=])\s*/g, "$1") // 👈 FIX ตรงนี้ (ลบ space รอบ > < = +)
+    .trim()
+    .toLowerCase();
+};
 
-  const excelHeaderMap = {};
-  const excelHeaderMapNormalized = {};
+  console.log("========== DEBUG START ==========");
 
+  // 🔵 Excel headers
+  console.log("📘 EXCEL HEADERS:");
   headers.forEach(h => {
-    if (h.name === undefined || h.name === null) return; // ข้าม undefined
-    excelHeaderMap[h.name.trim()] = h.index;
-    excelHeaderMap[h.name.trim().toLowerCase()] = h.index;
-    excelHeaderMapNormalized[normalizeStr(h.name)] = h.index;
+    console.log(`[${h.index}] "${h.name}"`);
   });
 
-  const resolveExcelIndex = (col) => {
-    const explicitMapped = mappingObject[col.key];
-    if (explicitMapped) {
-      const idx = excelHeaderMap[explicitMapped.trim()]
-                ?? excelHeaderMapNormalized[normalizeStr(explicitMapped)];
-      if (idx !== undefined) return idx;
+  // 🟢 DB columns
+  console.log("🗄️ DB COLUMNS:");
+  dbColumns.forEach(col => {
+    console.log(`key="${col.key}" title="${col.title}" thai="${col.thai_label}"`);
+  });
+
+  // 🟡 mapping
+  console.log("🧩 MAPPING:");
+  console.table(mappingObject);
+
+  // ✅ headerMap (normalize แล้ว)
+  const headerMap = {};
+  headers.forEach(h => {
+    if (!h?.name) return;
+    headerMap[normalize(h.name)] = h.index;
+  });
+
+  const isSpecialTable = tableId === "tb_patient_risk_records";
+
+  // 🧱 build columns
+  const finalColumns = dbColumns.map(col => {
+
+    const candidates = isSpecialTable
+      ? [
+          mappingObject[col.key],
+          col.thai_label,
+          col.title,
+          col.key
+        ]
+      : [
+          mappingObject[col.key],
+          col.thai_label,
+          col.key
+        ];
+
+    let excelIndex;
+    let matchedName;
+
+    for (const name of candidates) {
+      if (!name) continue;
+      const idx = headerMap[normalize(name)];
+      if (idx !== undefined) {
+        excelIndex = idx;
+        matchedName = name;
+        break;
+      }
     }
-    if (col.thai_label) {
-      const idx = excelHeaderMap[col.thai_label.trim()]
-                ?? excelHeaderMapNormalized[normalizeStr(col.thai_label)];
-      if (idx !== undefined) return idx;
+
+    return {
+      ...col,
+      excelIndex,
+      mappedName: matchedName,
+      isMatched: excelIndex !== undefined,
+      isSystem: false
+    };
+  });
+
+  // 🔥 DEBUG TABLE (ดู mapping + ค่า Excel จริง)
+  const debugTable = finalColumns.map(col => {
+    const sampleRow = rows[0];
+
+    let sampleValue =
+      col.excelIndex !== undefined
+        ? sampleRow?.values[col.excelIndex]
+        : undefined;
+
+    if (sampleValue && typeof sampleValue === "object") {
+      if (sampleValue.richText) {
+        sampleValue = sampleValue.richText.map(r => r.text).join("");
+      } else if (sampleValue.result !== undefined) {
+        sampleValue = sampleValue.result;
+      } else {
+        sampleValue = JSON.stringify(sampleValue);
+      }
     }
-    const idxEn = excelHeaderMap[col.key.toLowerCase()]
-                ?? excelHeaderMapNormalized[normalizeStr(col.key)];
-    if (idxEn !== undefined) return idxEn;
-    if (col.title) {
-      const idx = excelHeaderMap[col.title.trim()]
-                ?? excelHeaderMap[col.title.trim().toLowerCase()]
-                ?? excelHeaderMapNormalized[normalizeStr(col.title)];
-      if (idx !== undefined) return idx;
-    }
-    return undefined;
-  };
 
-  // ===== DEBUG LOG =====
-  console.group("🔍 Column Matching Debug");
-  console.log("📋 Excel headers:", headers.map(h => `[${h.index}] "${h.name}"`));
-  console.log("📋 จำนวน headers:", headers.length);
-  console.log("🗂️ excelHeaderMapNormalized keys:", Object.keys(excelHeaderMapNormalized));
-  console.log("🎯 mappingObject:", mappingObject);
-  console.log("─────────────────────────────────────");
+    return {
+      db_key: col.key,
+      mapped_to: col.mappedName,
+      excel_header: headers.find(h => h.index === col.excelIndex)?.name,
+      excel_index: col.excelIndex,
+      sample_value: sampleValue,
+      status: col.isMatched ? "MATCH ✅" : "MISSING ❌"
+    };
+  });
 
-  const debugRows = [];
-  dbColumns
-    .filter(col => !SYSTEM_COLUMNS.has(col.key))
-    .forEach(col => {
-      const explicitMapped = mappingObject[col.key];
-      const byExplicit = explicitMapped
-        ? (excelHeaderMap[explicitMapped.trim()] ?? excelHeaderMapNormalized[normalizeStr(explicitMapped)])
-        : undefined;
-      const byThai = col.thai_label
-        ? (excelHeaderMap[col.thai_label.trim()] ?? excelHeaderMapNormalized[normalizeStr(col.thai_label)])
-        : undefined;
-      const byEnglish = excelHeaderMap[col.key.toLowerCase()] ?? excelHeaderMapNormalized[normalizeStr(col.key)];
-      const byTitle = col.title
-        ? (excelHeaderMap[col.title.trim()] ?? excelHeaderMap[col.title.trim().toLowerCase()] ?? excelHeaderMapNormalized[normalizeStr(col.title)])
-        : undefined;
-      const resolved = byExplicit ?? byThai ?? byEnglish ?? byTitle;
+  console.log("📊 MATCH TABLE:");
+  console.table(debugTable);
 
-      debugRows.push({
-        "status"          : resolved !== undefined ? "✅" : "❌",
-        "db_key"          : col.key,
-        "thai_label"      : col.thai_label || "-",
-        "thai_normalized" : normalizeStr(col.thai_label),
-        "byExplicit"      : byExplicit  ?? "-",
-        "byThai"          : byThai      ?? "-",
-        "byEnglish"       : byEnglish   ?? "-",
-        "byTitle"         : byTitle     ?? "-",
-        "resolved_index"  : resolved    ?? "❌ MISSING",
-      });
-    });
+  console.log("❌ MISSING ONLY:");
+  console.table(debugTable.filter(d => d.excel_index === undefined));
 
-  console.table(debugRows);
-  console.groupEnd();
-  // ===== END DEBUG =====
+  console.log("========== DEBUG END ==========");
 
-  const now = new Date();
-  const dbTimestamp = now.toISOString().slice(0, 19).replace("T", " ");
-
-  let finalColumns = dbColumns
-    .filter(col => !SYSTEM_COLUMNS.has(col.key))
-    .map(col => {
-      const excelIndex = resolveExcelIndex(col);
-      return { ...col, isSystem: false, isMatched: !!excelIndex, excelIndex };
-    });
-
-  finalColumns.push(
-    { key: "created_at", dataIndex: "created_at", title: "created_at", type: "TIMESTAMP", isSystem: true, isMatched: true },
-    { key: "updated_at", dataIndex: "updated_at", title: "updated_at", type: "TIMESTAMP", isSystem: true, isMatched: true }
-  );
-
-  let parsedData = rows.map((rowObj, index) => {
-    let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 9)}` };
+  // 🧾 parse data
+  const parsedData = rows.map((row, i) => {
+    const obj = { _uId: i };
 
     finalColumns.forEach(col => {
-      if (col.isSystem) {
-        if (col.key === "created_at" || col.key === "updated_at") rowData[col.key] = dbTimestamp;
-      } else if (col.excelIndex !== undefined) {
-        let value = rowObj.values[col.excelIndex];
+      let val =
+        col.excelIndex !== undefined
+          ? row.values[col.excelIndex]
+          : "";
 
-        if (value === undefined) value = null; // แปลง undefined → null
-
-        if (value && typeof value === "object") {
-          if (value.result !== undefined)  value = value.result;
-          else if (value.richText)         value = value.richText.map(rt => rt.text).join("");
-          else if (value instanceof Date)  value = value.toISOString().split("T")[0];
+      if (val && typeof val === "object") {
+        if (val.richText) {
+          val = val.richText.map(r => r.text).join("");
+        } else if (val.result !== undefined) {
+          val = val.result;
+        } else {
+          val = "";
         }
-
-        if (col.type === "TINYINT") {
-          value = (
-            value === true || value === 1 || value === "1" ||
-            value === "true" || value === "ใช่" || value === "yes"
-          ) ? 1 : 0;
-        }
-
-        rowData[col.dataIndex || col.key] = value !== null ? value.toString() : "";
-      } else {
-        rowData[col.dataIndex || col.key] = "";
       }
+
+      obj[col.dataIndex || col.key] = val ?? "";
     });
 
-    return rowData;
+    return obj;
   });
 
   setDisplayColumns(finalColumns);
@@ -267,12 +269,59 @@ const generateTableData = (mappingObject, headers, rows) => {
         }
 
         // เก็บ Headers ดิบ
-        const headers = [];
-        worksheet.getRow(1).eachCell((cell, colNumber) => {
-            if (cell.value) {
-                headers.push({ name: cell.value.toString().trim(), index: colNumber });
-            }
-        });
+      const headers = [];
+
+const row1 = worksheet.getRow(1);
+const row2 = worksheet.getRow(2);
+
+const maxCol = Math.max(row1.cellCount, row2.cellCount);
+
+for (let col = 1; col <= maxCol; col++) {
+  let v1 = row1.getCell(col).value;
+  let v2 = row2.getCell(col).value;
+
+  const clean = (val) => {
+    if (!val) return "";
+
+    if (typeof val === "object") {
+      if (val.richText) {
+        val = val.richText.map(v => v.text).join(" ");
+      } else if (val.text) {
+        val = val.text;
+      } else if (val.result !== undefined) {
+        val = val.result;
+      } else {
+        val = "";
+      }
+    }
+
+    return val
+      .toString()
+      .replace(/\n/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  v1 = clean(v1);
+  v2 = clean(v2);
+
+  // 🔥 logic รวม 2 แถว
+  let finalName = "";
+
+  if (v2) {
+    finalName = v2; // 👉 ใช้แถว 2 เป็นหลัก
+  } else if (v1) {
+    finalName = v1;
+  }
+
+  if (finalName) {
+    headers.push({
+      name: finalName,
+      index: col
+    });
+  }
+}
+
         setRawHeaders(headers);
 
         // เก็บ Rows ดิบ
@@ -287,6 +336,7 @@ const generateTableData = (mappingObject, headers, rows) => {
         // ทำ Exact Match Map เริ่มต้น
         const initialMap = {};
         dbColumns.forEach(c => { initialMap[c.key] = c.title; });
+     
 
         generateTableData(initialMap, headers, rows);
         
