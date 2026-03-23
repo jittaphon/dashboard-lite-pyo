@@ -24,11 +24,6 @@ export default function ExcelImportModal({ visible, onCancel, tableId, tableName
     screening_count: 0
   }))
 );
-  
-
-
-console.log("Initial Summary Data State:", onUpload);
-
 
 // ฟังก์ชันสำหรับอัปเดตค่าในตารางสรุป
 const handleSummaryChange = (index, field, value) => {
@@ -95,188 +90,216 @@ const handleSummaryChange = (index, field, value) => {
     setUploadError(null);
   };
 
-
-
+  // ==========================================
+  // 1. ฟังก์ชันสร้างตาราง (ใช้ร่วมกันระหว่างแบบปกติและแบบ AI)
+  // ==========================================
 const generateTableData = (mappingObject, headers, rows) => {
-  // --- 1. ฟังก์ชันช่วยล้างค่า String (Logic เดิม) ---
-  const normalize = (str) => {
+
+  const SYSTEM_COLUMNS = new Set(["id", "created_at", "updated_at", "update_at"]);
+
+  const normalizeStr = (str) => {
     if (!str) return "";
-    return str.toString()
+    return str
       .trim()
-      .replace(/\s+/g, '') // ลบช่องว่างทั้งหมด
-      .toLowerCase();
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/&gt;/g, ">")
+      .replace(/&lt;/g, "<")
+      .replace(/&amp;/g, "&")
+      .replace(/\u003E/g, ">")
+      .replace(/\u003C/g, "<")
+      .replace(/\u003c/g, "<")
+      .replace(/\u003e/g, ">");
   };
 
-  // --- [DEBUG] เตรียมตัวแปรสำหรับเก็บ Log ---
-  const debugExcelHeaders = [];
-  const debugMappingResult = [];
+  const excelHeaderMap = {};
+  const excelHeaderMapNormalized = {};
 
-  const excelHeaderMap = {}; 
   headers.forEach(h => {
-    const cleanName = normalize(h.name);
-    if (cleanName) {
-      excelHeaderMap[cleanName] = { index: h.index, originalName: h.name };
-      // เก็บข้อมูลสำหรับ Log
-      debugExcelHeaders.push({
-        "Original Excel": h.name,
-        "Normalized": cleanName,
-        "Col Index": h.index
-      });
-    }
+    if (h.name === undefined || h.name === null) return; // ข้าม undefined
+    excelHeaderMap[h.name.trim()] = h.index;
+    excelHeaderMap[h.name.trim().toLowerCase()] = h.index;
+    excelHeaderMapNormalized[normalizeStr(h.name)] = h.index;
   });
 
-  let finalColumns = dbColumns.map(col => {
-    let matchedExcelCol = null;
-
-    const normKey = normalize(col.key);
-    const normThai = normalize(col.thai_label);
-
-    if (excelHeaderMap[normKey]) {
-      matchedExcelCol = excelHeaderMap[normKey];
-    } else if (normThai && excelHeaderMap[normThai]) {
-      matchedExcelCol = excelHeaderMap[normThai];
+  const resolveExcelIndex = (col) => {
+    const explicitMapped = mappingObject[col.key];
+    if (explicitMapped) {
+      const idx = excelHeaderMap[explicitMapped.trim()]
+                ?? excelHeaderMapNormalized[normalizeStr(explicitMapped)];
+      if (idx !== undefined) return idx;
     }
+    if (col.thai_label) {
+      const idx = excelHeaderMap[col.thai_label.trim()]
+                ?? excelHeaderMapNormalized[normalizeStr(col.thai_label)];
+      if (idx !== undefined) return idx;
+    }
+    const idxEn = excelHeaderMap[col.key.toLowerCase()]
+                ?? excelHeaderMapNormalized[normalizeStr(col.key)];
+    if (idxEn !== undefined) return idxEn;
+    if (col.title) {
+      const idx = excelHeaderMap[col.title.trim()]
+                ?? excelHeaderMap[col.title.trim().toLowerCase()]
+                ?? excelHeaderMapNormalized[normalizeStr(col.title)];
+      if (idx !== undefined) return idx;
+    }
+    return undefined;
+  };
 
-    const systemFields = ['id', 'created_at', 'updated_at'];
-    const isSystemField = systemFields.includes(col.key);
+  // ===== DEBUG LOG =====
+  console.group("🔍 Column Matching Debug");
+  console.log("📋 Excel headers:", headers.map(h => `[${h.index}] "${h.name}"`));
+  console.log("📋 จำนวน headers:", headers.length);
+  console.log("🗂️ excelHeaderMapNormalized keys:", Object.keys(excelHeaderMapNormalized));
+  console.log("🎯 mappingObject:", mappingObject);
+  console.log("─────────────────────────────────────");
 
-    // --- [DEBUG] เก็บข้อมูลการ Match ราย Column ---
-    debugMappingResult.push({
-      "DB Key": col.key,
-      "DB Thai Label": col.thai_label || "-",
-      "Normalized DB (Thai)": normThai,
-      "Status": isSystemField ? "⚙️ SYSTEM" : (!!matchedExcelCol ? "✅ FOUND" : "❌ MISSING"),
-      "Matched With": matchedExcelCol ? matchedExcelCol.originalName : "-"
+  const debugRows = [];
+  dbColumns
+    .filter(col => !SYSTEM_COLUMNS.has(col.key))
+    .forEach(col => {
+      const explicitMapped = mappingObject[col.key];
+      const byExplicit = explicitMapped
+        ? (excelHeaderMap[explicitMapped.trim()] ?? excelHeaderMapNormalized[normalizeStr(explicitMapped)])
+        : undefined;
+      const byThai = col.thai_label
+        ? (excelHeaderMap[col.thai_label.trim()] ?? excelHeaderMapNormalized[normalizeStr(col.thai_label)])
+        : undefined;
+      const byEnglish = excelHeaderMap[col.key.toLowerCase()] ?? excelHeaderMapNormalized[normalizeStr(col.key)];
+      const byTitle = col.title
+        ? (excelHeaderMap[col.title.trim()] ?? excelHeaderMap[col.title.trim().toLowerCase()] ?? excelHeaderMapNormalized[normalizeStr(col.title)])
+        : undefined;
+      const resolved = byExplicit ?? byThai ?? byEnglish ?? byTitle;
+
+      debugRows.push({
+        "status"          : resolved !== undefined ? "✅" : "❌",
+        "db_key"          : col.key,
+        "thai_label"      : col.thai_label || "-",
+        "thai_normalized" : normalizeStr(col.thai_label),
+        "byExplicit"      : byExplicit  ?? "-",
+        "byThai"          : byThai      ?? "-",
+        "byEnglish"       : byEnglish   ?? "-",
+        "byTitle"         : byTitle     ?? "-",
+        "resolved_index"  : resolved    ?? "❌ MISSING",
+      });
     });
 
-    return {
-      ...col,
-      isSystem: isSystemField,
-      isMatched: isSystemField ? true : !!matchedExcelCol,
-      excelIndex: matchedExcelCol ? matchedExcelCol.index : null,
-      mappedName: matchedExcelCol ? matchedExcelCol.originalName : (col.thai_label || col.key)
-    };
-  });
-
-  // ==========================================
-  // 🔥 [CONSOLE LOG] ส่วนที่เพิ่มเข้ามาเพื่อตรวจสอบ
-  // ==========================================
-  console.group("🔍 ตรวจสอบการ Match Column (Excel vs Database)");
-  
-  console.log("1. หัวตารางที่ตรวจพบในไฟล์ Excel:");
-  console.table(debugExcelHeaders);
-  
-  console.log("2. สรุปการจับคู่กับ Database:");
-  console.table(debugMappingResult);
-
-  const missing = debugMappingResult.filter(r => r.Status === "❌ MISSING");
-  if (missing.length > 0) {
-    console.warn("⚠️ คอลัมน์ที่หายไป (ไม่พบใน Excel):", missing.map(m => m["DB Key"]));
-  } else {
-    console.log("🎉 ทุกคอลัมน์ Match สำเร็จ!");
-  }
-  
+  console.table(debugRows);
   console.groupEnd();
-  // ==========================================
+  // ===== END DEBUG =====
 
-  // --- 2. ส่วนการ Gen ข้อมูล (Logic เดิมทั้งหมด) ---
-  const dbTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const now = new Date();
+  const dbTimestamp = now.toISOString().slice(0, 19).replace("T", " ");
+
+  let finalColumns = dbColumns
+    .filter(col => !SYSTEM_COLUMNS.has(col.key))
+    .map(col => {
+      const excelIndex = resolveExcelIndex(col);
+      return { ...col, isSystem: false, isMatched: !!excelIndex, excelIndex };
+    });
+
+  finalColumns.push(
+    { key: "created_at", dataIndex: "created_at", title: "created_at", type: "TIMESTAMP", isSystem: true, isMatched: true },
+    { key: "updated_at", dataIndex: "updated_at", title: "updated_at", type: "TIMESTAMP", isSystem: true, isMatched: true }
+  );
 
   let parsedData = rows.map((rowObj, index) => {
-    let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 5)}` };
-    
-    finalColumns.forEach((col) => {
+    let rowData = { _uId: `row-${index}-${Math.random().toString(36).substr(2, 9)}` };
+
+    finalColumns.forEach(col => {
       if (col.isSystem) {
-        if (col.key === "updated_at" || col.key === "created_at") rowData[col.key] = dbTimestamp;
-        else if (col.key === "id") rowData[col.key] = null; 
-      } else {
-        if (col.excelIndex !== null) {
-          let value = rowObj.values[col.excelIndex];
-          if (value && typeof value === 'object') {
-             if (value.result !== undefined) value = value.result;
-             else if (value.richText) value = value.richText.map(rt => rt.text).join("");
-             else if (value instanceof Date) value = value.toISOString().split('T')[0];
-          }
-          rowData[col.dataIndex || col.key] = (value !== null && value !== undefined) ? value.toString().trim() : "";
-        } else {
-          rowData[col.dataIndex || col.key] = ""; 
+        if (col.key === "created_at" || col.key === "updated_at") rowData[col.key] = dbTimestamp;
+      } else if (col.excelIndex !== undefined) {
+        let value = rowObj.values[col.excelIndex];
+
+        if (value === undefined) value = null; // แปลง undefined → null
+
+        if (value && typeof value === "object") {
+          if (value.result !== undefined)  value = value.result;
+          else if (value.richText)         value = value.richText.map(rt => rt.text).join("");
+          else if (value instanceof Date)  value = value.toISOString().split("T")[0];
         }
+
+        if (col.type === "TINYINT") {
+          value = (
+            value === true || value === 1 || value === "1" ||
+            value === "true" || value === "ใช่" || value === "yes"
+          ) ? 1 : 0;
+        }
+
+        rowData[col.dataIndex || col.key] = value !== null ? value.toString() : "";
+      } else {
+        rowData[col.dataIndex || col.key] = "";
       }
     });
+
     return rowData;
   });
 
   setDisplayColumns(finalColumns);
   setPreviewData(parsedData);
 };
-// 2. Handler สำหรับการอ่านไฟล์ (เน้นหา Header Row ที่ถูกต้อง)
-// ==========================================
-const handleFileChange = (e) => {
-  const selectedFile = e.target.files[0];
-  if (!selectedFile) return;
 
-  setIsProcessing(true);
-
-  setTimeout(async () => {
-    try {
-      const arrayBuffer = await selectedFile.arrayBuffer();
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(arrayBuffer);
-      const worksheet = workbook.worksheets[0];
-
-      // ค้นหาบรรทัดที่เป็นหัวตาราง (หาจาก 15 แถวแรก)
-      let headerRowNumber = 1;
-      for (let i = 1; i <= 15; i++) {
-        const rowValues = worksheet.getRow(i).values.map(v => v?.toString().trim());
-        if (rowValues.includes("ลำดับ") || rowValues.includes("HN") || rowValues.includes("ปีเอกสาร")) {
-          headerRowNumber = i;
-          break;
-        }
-      }
-
-      const headers = [];
-      const currentRow = worksheet.getRow(headerRowNumber);
-      const nextRow = worksheet.getRow(headerRowNumber + 1);
-
-      currentRow.eachCell((cell, colNumber) => {
-        let name = cell.value?.toString().trim();
-        
-        // จัดการ Header แบบซ้อน (Merged Cells) ตามรูปไฟล์
-        if (!name || name === "คะแนนรวม" || name.includes("ข้อมูลเพิ่มเติม")) {
-          const subName = nextRow.getCell(colNumber).value?.toString().trim();
-          if (subName) name = subName;
-        }
-        if (name) headers.push({ name, index: colNumber });
-      });
-
-      // ดึงข้อมูล Row โดยเริ่มจากบรรทัดถัดไปของ Header (พิจารณา Header 2 ชั้น)
-      const rows = [];
-      const dataStartRow = headerRowNumber + 2; // จากรูป Excel น่าจะเริ่มข้อมูลจริงที่บรรทัด Header + 2
-      
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber >= dataStartRow) {
-          rows.push({ rowIndex: rowNumber, values: row.values });
-        }
-      });
-
-      setRawHeaders(headers);
-      setRawRows(rows);
-
-      const initialMap = {};
-      dbColumns.forEach(c => { initialMap[c.key] = c.title || c.key; });
-
-      generateTableData(initialMap, headers, rows);
-      setFile(selectedFile);
-
-    } catch (error) {
-      console.error(error);
-      setUploadError("Error: " + error.message);
-    } finally {
-      setIsProcessing(false);
+  // ==========================================
+  // 2. เมื่อผู้ใช้อัปโหลดไฟล์ (Exact Match ก่อน)
+  // ==========================================
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+    
+    const isExcel = selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || selectedFile.type === 'application/vnd.ms-excel';
+    if (!isExcel) {
+      setUploadError('กรุณาอัปโหลดไฟล์นามสกุล .xls หรือ .xlsx เท่านั้น');
+      return;
     }
-  }, 200);
-};
 
+    setIsProcessing(true);
+
+    setTimeout(async () => {
+      try {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+
+        if (!worksheet || worksheet.rowCount === 0) {
+          throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+        }
+
+        // เก็บ Headers ดิบ
+        const headers = [];
+        worksheet.getRow(1).eachCell((cell, colNumber) => {
+            if (cell.value) {
+                headers.push({ name: cell.value.toString().trim(), index: colNumber });
+            }
+        });
+        setRawHeaders(headers);
+
+        // เก็บ Rows ดิบ
+        const rows = [];
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber > 1) { 
+                rows.push({ rowIndex: rowNumber, values: row.values });
+            }
+        });
+        setRawRows(rows);
+
+        // ทำ Exact Match Map เริ่มต้น
+        const initialMap = {};
+        dbColumns.forEach(c => { initialMap[c.key] = c.title; });
+
+        generateTableData(initialMap, headers, rows);
+        
+        setFile(selectedFile);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error(error);
+        setUploadError(error.message || "เกิดข้อผิดพลาดในการอ่านไฟล์");
+      } finally {
+        setIsProcessing(false);
+      }
+    }, 150);
+  };
 
 
   const deleteRow = (actualIndex) => {
@@ -291,23 +314,29 @@ const handleFileChange = (e) => {
 
     setIsUploading(true);
     setUploadProgress(0);
-
-    const finalPayload = {
+  const finalPayload = {
       table_id: tableId,
       table_name: tableName,
       department: department,
-      
       import_at: new Date().toISOString(),
       total_records: previewData.length,
       data: previewData.map(({ _uId, ...rest }) => rest),
-
-
-      summary_data: tableName === 'tb_screening_results' ? summaryData : null, 
+      summary_data: tableId === 'tb_patient_risk_records' ? summaryData : null,
       import_date: new Date().toISOString(),
-
     };
 
-    try {
+    console
+    // ===== DEBUG LOG =====
+    console.group("📦 Final Payload Preview");
+    console.log("table_id:", finalPayload.table_id);
+    console.log("table_name:", finalPayload.table_name);
+    console.log("total_records:", finalPayload.total_records);
+    console.log("summary_data:", finalPayload.summary_data);
+    console.log("data (first 2 rows):", finalPayload.data.slice(0, 2));
+    console.log("🔍 full payload:", finalPayload);
+    console.groupEnd();
+
+    /*try {
       const response = await onUpload(finalPayload);
 
       if (response.status === 200 || response.data?.success) {
@@ -326,7 +355,7 @@ const handleFileChange = (e) => {
       setUploadError(err.message || "เกิดข้อผิดพลาดในการนำเข้าข้อมูล");
     } finally {
       setIsUploading(false);
-    }
+    }*/
   };
 
   const downloadTemplate = async () => {
@@ -640,15 +669,15 @@ const handleFileChange = (e) => {
                                 </div>
                               )}
                             </div>
-                            <div className="px-4 py-2 flex flex-col gap-1.5">
-                              <div className="flex justify-between items-center text-[9px] font-bold tracking-tight">
-                                <span className={col.isSystem ? "text-emerald-700" : (col.isMatched ? (isMappedByAi ? "text-indigo-600" : "text-emerald-600") : "text-orange-600")}>
-                                  {col.isSystem ? "SYSTEM GENERATED" : (col.isMatched ? (isMappedByAi ? `AI: [${col.mappedName}]` : "MAPPED SUCCESS") : "COLUMN MISSING")}
-                                </span>
-                                <span className="text-slate-300 font-mono">{col.type}</span>
-                              </div>
-                              <div className={`h-1.5 w-full rounded-full ${col.isSystem ? 'bg-emerald-600' : (col.isMatched ? (isMappedByAi ? 'bg-indigo-500' : 'bg-emerald-500') : 'bg-orange-400')}`} />
-                            </div>
+                           <div className="px-4 py-2 flex flex-col gap-1.5">
+  <div className="flex justify-between items-center text-[9px] font-bold tracking-tight">
+    <span className={col.isSystem ? "text-emerald-700" : (col.isMatched ? "text-emerald-600" : "text-orange-600")}>
+      {col.isSystem ? "SYSTEM GENERATED" : (col.isMatched ? "MAPPED SUCCESS" : "COLUMN MISSING")}
+    </span>
+    <span className="text-slate-300 font-mono">{col.type}</span>
+  </div>
+  <div className={`h-1.5 w-full rounded-full ${col.isSystem ? 'bg-emerald-600' : (col.isMatched ? 'bg-emerald-500' : 'bg-orange-400')}`} />
+</div>
                           </div>
                         </th>
                       )})}
