@@ -1,6 +1,5 @@
 // utils/reportRegistry.js
 
-// utils/reportRegistry.js
 
 export const reportStrategies = {
     
@@ -235,15 +234,6 @@ export const reportStrategies = {
 "TB_RISK_SCORE": {
   layout: [
 { i: 'card-total', x: 0, y: 0, w: 3, h: 3 },
-    { i: 'card-admit', x: 3, y: 0, w: 3, h: 3 },
-    { i: 'card-death', x: 6, y: 0, w: 3, h: 3 },
-    { i: 'card-performance', x: 9, y: 0, w: 3, h: 3 },
-    
-    // แถวสอง: Heatmap ขยับขึ้นมาต่อทันที (y: 2)
-    { i: 'measure-heatmap-percent', x: 0, y: 2, w: 12, h: 10 },
-    
-    // แถวล่าง: กราฟแท่ง (y: 12)
-    { i: 'mortality-bar-chart', x: 7, y: 12, w: 12, h: 7 }
   ],
   widgets: [
     // --- Card: ผู้ป่วยทั้งหมด ---
@@ -252,142 +242,13 @@ export const reportStrategies = {
       type: 'card',
       label: 'ผู้ป่วยขึ้นทะเบียนสะสม',
       transform: (data) => {
-        const total = data.filter(d => d.topic === 'จำนวนผู้ป่วยขึ้นทะเบียนทั้งหมด (All Form)')
-                          .reduce((sum, curr) => sum + (Number(curr.count) || 0), 0);
-        return { value: total, unit: 'ราย', color: '#3b82f6' };
+
+        console.log("Transforming data for card-total:", data); // Debug log  
+ 
+
       }
     },
-    // --- Card: Admit สะสม ---
-    {
-      id: 'card-admit',
-      type: 'card',
-      label: 'Admit (Inter + High)',
-      transform: (data) => {
-        const total = data.filter(d => d.topic.includes('Admit'))
-                          .reduce((sum, curr) => sum + (Number(curr.count) || 0), 0);
-        return { value: total, unit: 'ราย', color: '#f59e0b', description: 'เฝ้าระวังอาการใกล้ชิด' };
-      }
-    },
-    // --- Card: เสียชีวิตสะสม ---
-    {
-      id: 'card-death',
-      type: 'card',
-      label: 'เสียชีวิตรวม',
-      transform: (data) => {
-        const total = data.filter(d => d.topic.includes('เสียชีวิต'))
-                          .reduce((sum, curr) => sum + (Number(curr.count) || 0), 0);
-        return { value: total, unit: 'ราย', color: '#ef4444' };
-      }
-    },
-    // --- Card: หมอใหญ่ KPI (ร้อยละการตรวจ LFT รวมทั้งจังหวัด) ---
-    {
-      id: 'card-performance',
-      type: 'card',
-      label: 'ภาพรวมตรวจ LFT (KPI)',
-      transform: (data) => {
-        const totalRisk = data.filter(d => d.topic.includes('Risk ทั้งหมด') && !d.topic.includes('Low'))
-                              .reduce((sum, curr) => sum + (Number(curr.count) || 0), 0);
-        const lftCount = data.filter(d => d.topic === '4.1 ตรวจ LFT (ราย)')
-                             .reduce((sum, curr) => sum + (Number(curr.count) || 0), 0);
-        const percent = totalRisk > 0 ? (lftCount / totalRisk) * 100 : 0;
-        return { value: percent.toFixed(1), unit: '%', color: '#10b981', description: 'เป้าหมาย > 90%' };
-      }
-    },
-
-  
-    // ==========================================
-    // Widget 1: Heatmap (ของเดิมของคุณ)
-    // ==========================================
-    {
-      id: 'measure-heatmap-percent',
-      type: 'heatmap',
-      label: 'ร้อยละการดำเนินงานมาตรการ (Intermediate + High Risk)',
-      transform: (data) => {
-        const ampurGroups = data.reduce((acc, curr) => {
-          if (!acc[curr.ampur]) acc[curr.ampur] = {};
-          acc[curr.ampur][curr.topic] = Number(curr.count) || 0;
-          return acc;
-        }, {});
-
-        const result = [];
-        Object.keys(ampurGroups).forEach(ampur => {
-          const vals = ampurGroups[ampur];
-          
-          const totalRisk = (vals['2.2 Score 15 - 18 = Intermediate Risk ทั้งหมด'] || 0) + 
-                            (vals['2.3 Score ≥ 19 = High Risk ทั้งหมด'] || 0);
-
-          const getPercent = (value) => (totalRisk > 0 ? (value / totalRisk) * 100 : 0);
-
-          const measures = [
-            { key: '3.1 Consult อายุรแพทย์ (ราย)', label: 'ร้อยละ Consult' },
-            { key: '4.1 ตรวจ LFT (ราย)', label: 'ร้อยละ ตรวจ LFT' },
-            { key: '5.1 กำกับการกินยาโดย จนท. (ราย)', label: ' ร้อยละ กำกับการกินยา' },
-            { key: 'High Risk Admit', label: 'ร้อยละ Admit' }
-          ];
-
-          measures.forEach(m => {
-            result.push({
-              ampur: ampur,
-              topic: m.label,
-              count: getPercent(vals[m.key] || 0)
-            });
-          });
-        });
-
-        return result;
-      }
-    },
-
-    // ==========================================
-    // Widget 2: Bar Chart (เพิ่มใหม่ - อัตราเสียชีวิต)
-    // ==========================================
-    {
-      id: 'mortality-bar-chart',
-      type: 'bar', // เปลี่ยน type เป็น bar chart
-      label: 'อัตราการเสียชีวิตของผู้ป่วย TB แยก Risk Score',
-      transform: (data) => {
-        // 1. รวมผลรวมของทั้งจังหวัด (หรือจะแยกตามอำเภอก็ได้ แต่ใน Excel เป็นภาพรวม)
-        let lowTotal = 0, lowDeath = 0;
-        let interTotal = 0, interDeath = 0;
-        let highTotal = 0, highDeath = 0;
-
-        data.forEach(curr => {
-          const val = Number(curr.count) || 0;
-          const topic = curr.topic ? curr.topic.trim() : '';
-
-          // นับกลุ่ม Low Risk
-          if (topic === '2.1 Score 0 - 14 = Low Risk ทั้งหมด') lowTotal += val;
-          if (topic === 'Low Risk เสียชีวิต') lowDeath += val;
-
-          // นับกลุ่ม Intermediate Risk
-          if (topic === '2.2 Score 15 - 18 = Intermediate Risk ทั้งหมด') interTotal += val;
-          if (topic === 'Intermediate Risk เสียชีวิต') interDeath += val;
-
-          // นับกลุ่ม High Risk
-          if (topic === '2.3 Score ≥ 19 = High Risk ทั้งหมด') highTotal += val;
-          if (topic === 'High Risk เสียชีวิต') highDeath += val;
-        });
-
-        // ฟังก์ชันคำนวณร้อยละ
-        const getPercent = (death, total) => total > 0 ? (death / total) * 100 : 0;
-
-        // 2. ส่งข้อมูลออกไปวาด Bar Chart (แกน X คือ riskGroup, แกน Y คือ mortalityRate)
-        return [
-          {
-            riskGroup: 'Low Risk',
-            mortalityRate: getPercent(lowDeath, lowTotal)
-          },
-          {
-            riskGroup: 'Intermediate Risk',
-            mortalityRate: getPercent(interDeath, interTotal)
-          },
-          {
-            riskGroup: 'High Risk',
-            mortalityRate: getPercent(highDeath, highTotal)
-          }
-        ];
-      }
-    }
+   
   ]
 }
 };

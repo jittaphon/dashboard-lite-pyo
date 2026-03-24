@@ -121,20 +121,23 @@ export default function TopicDetailPage() {
               const transformedData = widget.transform(filteredData);
 
               // 🚀 1. แยก Render เฉพาะ Card (ไม่มีกรอบครอบ)
-              if (widget.type === 'card') {
-                return (
-                  <div key={widget.id}>
-                    <StatCard 
-                      label={widget.label}
-                      value={transformedData.value}
-                      unit={transformedData.unit}
-                      color={transformedData.color}
-                      description={transformedData.description}
-                      icon={getAutoIcon(widget.label)} // ✨ ใส่ไอคอนออโต้
-                    />
-                  </div>
-                );
-              }
+             if (widget.type === 'card') {
+  // ดักไว้ก่อนเลย ถ้าไม่มีข้อมูลให้ข้ามไป หรือโชว์เป็นค่า 0
+  const safeData = transformedData || {}; 
+
+  return (
+    <div key={widget.id}>
+      <StatCard 
+        label={widget.label}
+        value={safeData.value ?? "N/A"} // ✅ ปลอดภัย 100%
+        unit={safeData.unit || ""}
+        color={safeData.color || "text-slate-500"}
+        description={safeData.description || "ไม่มีข้อมูล"}
+        icon={getAutoIcon(widget.label)}
+      />
+    </div>
+  );
+}
 
               // 📊 2. Render กราฟและตาราง (มี Header Box)
               return (
