@@ -17,20 +17,9 @@ import ExcelJS from "exceljs";
 
 export default function ExcelImportModal({ visible, onCancel, tableId, tableName, columns: dbColumns = [], department, onUpload }) {
 
-  const [summaryData, setSummaryData] = useState(
-  ["รพ.พะเยา", "รพ.เชียงคำ", "รพ.จุน", "รพ.เชียงม่วน", "รพ.ดอกคำใต้", "รพ.ปง", "รพ.แม่ใจ", "รพ.ภูซาง", "รพ.ภูกามยาว"].map(name => ({
-    hospital_name: name,
-    walk_in_count: 0,
-    screening_count: 0
-  }))
-);
 
-// ฟังก์ชันสำหรับอัปเดตค่าในตารางสรุป
-const handleSummaryChange = (index, field, value) => {
-  const newData = [...summaryData];
-  newData[index][field] = parseInt(value) || 0;
-  setSummaryData(newData);
-};
+
+
 
   // --- States หลัก ---
   const [file, setFile] = useState(null);
@@ -245,111 +234,106 @@ const generateTableData = (mappingObject, headers, rows) => {
   // ==========================================
   // 2. เมื่อผู้ใช้อัปโหลดไฟล์ (Exact Match ก่อน)
   // ==========================================
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (!selectedFile) return;
-    
-    const isExcel = selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || selectedFile.type === 'application/vnd.ms-excel';
-    if (!isExcel) {
-      setUploadError('กรุณาอัปโหลดไฟล์นามสกุล .xls หรือ .xlsx เท่านั้น');
-      return;
-    }
+const handleFileChange = (e) => {
+  const selectedFile = e.target.files[0];
+  if (!selectedFile) return;
 
-    setIsProcessing(true);
+  const isExcel = selectedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || selectedFile.type === 'application/vnd.ms-excel';
+  if (!isExcel) {
+    setUploadError('กรุณาอัปโหลดไฟล์นามสกุล .xls หรือ .xlsx เท่านั้น');
+    return;
+  }
 
-    setTimeout(async () => {
-      try {
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(arrayBuffer);
-        const worksheet = workbook.worksheets[0];
+  setIsProcessing(true);
 
-        if (!worksheet || worksheet.rowCount === 0) {
-          throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+  setTimeout(async () => {
+    try {
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
+
+      if (!worksheet || worksheet.rowCount === 0) {
+        throw new Error("ไม่พบข้อมูลในไฟล์ Excel");
+      }
+
+      const headers = [];
+      const rows = [];
+      
+      // ฟังก์ชัน Clean ข้อความ (ย้ายออกมาข้างนอกเพื่อให้เรียกใช้ง่าย)
+      const clean = (val) => {
+        if (!val) return "";
+        if (typeof val === "object") {
+          if (val.richText) val = val.richText.map(v => v.text).join(" ");
+          else if (val.text) val = val.text;
+          else if (val.result !== undefined) val = val.result;
+          else val = "";
+        }
+        return val.toString().replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+      };
+
+      // --- ส่วนที่ปรับเปลี่ยน: แยก Logic ตาม tableId ---
+      
+      if (tableId === 'tb_patient_risk_records') {
+        // ✅ เคสหัวตาราง 2 แถว (Logic เดิมของคุณ)
+        const row1 = worksheet.getRow(1);
+        const row2 = worksheet.getRow(2);
+        const maxCol = Math.max(row1.cellCount, row2.cellCount);
+
+        for (let col = 1; col <= maxCol; col++) {
+          let v1 = clean(row1.getCell(col).value);
+          let v2 = clean(row2.getCell(col).value);
+          let finalName = v2 || v1; // ใช้ v2 ก่อน ถ้าไม่มีใช้ v1
+
+          if (finalName) {
+            headers.push({ name: finalName, index: col });
+          }
         }
 
-        // เก็บ Headers ดิบ
-      const headers = [];
-
-const row1 = worksheet.getRow(1);
-const row2 = worksheet.getRow(2);
-
-const maxCol = Math.max(row1.cellCount, row2.cellCount);
-
-for (let col = 1; col <= maxCol; col++) {
-  let v1 = row1.getCell(col).value;
-  let v2 = row2.getCell(col).value;
-
-  const clean = (val) => {
-    if (!val) return "";
-
-    if (typeof val === "object") {
-      if (val.richText) {
-        val = val.richText.map(v => v.text).join(" ");
-      } else if (val.text) {
-        val = val.text;
-      } else if (val.result !== undefined) {
-        val = val.result;
-      } else {
-        val = "";
-      }
-    }
-
-    return val
-      .toString()
-      .replace(/\n/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  };
-
-  v1 = clean(v1);
-  v2 = clean(v2);
-
-  // 🔥 logic รวม 2 แถว
-  let finalName = "";
-
-  if (v2) {
-    finalName = v2; // 👉 ใช้แถว 2 เป็นหลัก
-  } else if (v1) {
-    finalName = v1;
-  }
-
-  if (finalName) {
-    headers.push({
-      name: finalName,
-      index: col
-    });
-  }
-}
-
-        setRawHeaders(headers);
-
-        // เก็บ Rows ดิบ
-        const rows = [];
+        // เริ่มเก็บข้อมูลตั้งแต่แถวที่ 3 (เพราะ 1-2 เป็น Header)
         worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber > 1) { 
-                rows.push({ rowIndex: rowNumber, values: row.values });
-            }
+          if (rowNumber > 2) {
+            rows.push({ rowIndex: rowNumber, values: row.values });
+          }
         });
-        setRawRows(rows);
 
-        // ทำ Exact Match Map เริ่มต้น
-        const initialMap = {};
-        dbColumns.forEach(c => { initialMap[c.key] = c.title; });
-     
+      } else {
+        // ✅ เคสหัวตาราง 1 แถวทั่วไป
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell((cell, colNumber) => {
+          const name = clean(cell.value);
+          if (name) {
+            headers.push({ name: name, index: colNumber });
+          }
+        });
 
-        generateTableData(initialMap, headers, rows);
-        
-        setFile(selectedFile);
-        setCurrentPage(1);
-      } catch (error) {
-        console.error(error);
-        setUploadError(error.message || "เกิดข้อผิดพลาดในการอ่านไฟล์");
-      } finally {
-        setIsProcessing(false);
+        // เริ่มเก็บข้อมูลตั้งแต่แถวที่ 2
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber > 1) {
+            rows.push({ rowIndex: rowNumber, values: row.values });
+          }
+        });
       }
-    }, 150);
-  };
+
+      // --- จบส่วนที่ปรับเปลี่ยน ---
+
+      setRawHeaders(headers);
+      setRawRows(rows);
+
+      const initialMap = {};
+      dbColumns.forEach(c => { initialMap[c.key] = c.title; });
+
+      generateTableData(initialMap, headers, rows);
+      setFile(selectedFile);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error(error);
+      setUploadError(error.message || "เกิดข้อผิดพลาดในการอ่านไฟล์");
+    } finally {
+      setIsProcessing(false);
+    }
+  }, 150);
+};
 
 
   const deleteRow = (actualIndex) => {
@@ -371,22 +355,11 @@ for (let col = 1; col <= maxCol; col++) {
       import_at: new Date().toISOString(),
       total_records: previewData.length,
       data: previewData.map(({ _uId, ...rest }) => rest),
-      summary_data: tableId === 'tb_patient_risk_records' ? summaryData : null,
       import_date: new Date().toISOString(),
     };
 
-    console
-    // ===== DEBUG LOG =====
-    console.group("📦 Final Payload Preview");
-    console.log("table_id:", finalPayload.table_id);
-    console.log("table_name:", finalPayload.table_name);
-    console.log("total_records:", finalPayload.total_records);
-    console.log("summary_data:", finalPayload.summary_data);
-    console.log("data (first 2 rows):", finalPayload.data.slice(0, 2));
-    console.log("🔍 full payload:", finalPayload);
-    console.groupEnd();
 
-    /*try {
+    try {
       const response = await onUpload(finalPayload);
 
       if (response.status === 200 || response.data?.success) {
@@ -405,7 +378,7 @@ for (let col = 1; col <= maxCol; col++) {
       setUploadError(err.message || "เกิดข้อผิดพลาดในการนำเข้าข้อมูล");
     } finally {
       setIsUploading(false);
-    }*/
+    }
   };
 
   const downloadTemplate = async () => {
@@ -607,48 +580,7 @@ for (let col = 1; col <= maxCol; col++) {
     </div>
   </div>
 
-  {/* 2. ส่วนกลาง: ใส่ flex-1 และ overflow-y-auto เพื่อให้เลื่อนได้เฉพาะส่วนนี้ */}
-  <div className="flex-1 overflow-y-auto px-3 space-y-3 custom-scrollbar">
-    {tableId === 'tb_patient_risk_records' && (
-      <div className="py-2">
-        <div className="flex items-center gap-2 px-3 mb-3 sticky top-0 bg-[#f8fafc] z-10 py-1">
-          <Sparkles size={14} className="text-indigo-500" />
-          <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight">Input Hospital Summary</span>
-        </div>
-        
-        <div className="space-y-3">
-          {summaryData.map((item, idx) => (
-            <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors">
-              <div className="text-[10px] font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
-                {item.hospital_name}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[8px] text-slate-400 uppercase font-black block mb-0.5">Walk-in</label>
-                  <input 
-                    type="number" 
-                    className="w-full text-[11px] font-mono border-b border-slate-100 focus:border-emerald-500 outline-none p-0.5 transition-colors"
-                    value={item.walk_in_count}
-                    onChange={(e) => handleSummaryChange(idx, 'walk_in_count', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-[8px] text-slate-400 uppercase font-black block mb-0.5">Screening</label>
-                  <input 
-                    type="number" 
-                    className="w-full text-[11px] font-mono border-b border-slate-100 focus:border-indigo-500 outline-none p-0.5 transition-colors"
-                    value={item.screening_count}
-                    onChange={(e) => handleSummaryChange(idx, 'screening_count', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )}
-  </div>
+
                 
 
                 {/* Status Box */}

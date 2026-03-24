@@ -45,7 +45,7 @@ useEffect(() => {
       const res = await API.Auth.exchangeToken({
         grant_type: "authorization_code",
         code,
-        redirect_uri: `${import.meta.env.VITE_BASE_DOMAIN}/datahub/kpi-pyo-hub/public/authentication/callback`,
+        redirect_uri: `${import.meta.env.VITE_BASE_DOMAIN}/kpi-pyo-hub/public/authentication/callback`,
         client_id: "kpi-pyo-hub",
         code_verifier: pkceVerifier,
       });

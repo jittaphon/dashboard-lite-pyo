@@ -13,7 +13,8 @@ import ExcelImportModal from '../../components/ExcelImportModal';
 export default function AdminOfDiseaseControl() {
   const TableConfig = {
   'tb_screening_results': API.dcdepartmentAPI.postSaveScreeningResults,
-  'tb_risk_score': API.dcdepartmentAPI.postSaveRiskScore,
+  'tb_patient_risk_records': API.dcdepartmentAPI.postSaveRiskScore,
+  'tb_patient_risk_records_summary': API.dcdepartmentAPI.postSaveRiskScoreWalkinScreen,
   // อนาคตเพิ่มตรงนี้ได้เรื่อยๆ โดยไม่ต้องแก้ Modal
 };
   const [tableList, setTableList] = useState([]);
@@ -30,7 +31,7 @@ export default function AdminOfDiseaseControl() {
   const tableNameMap = {
     "tb_screening_results": "ตัวชี้วัด ผลการคัดกรองวัณโรค",
     "tb_patient_risk_records": "ตัวชี้วัด ติดตามมาตรการผู้ป่วยวัณโรค แยกตามกลุ่มเสี่ยง Risk Score",
-     "tb_hospital_screening_summary": "Risk Score เก็บเเค่ การรับบริการ",
+     "tb_patient_risk_records_summary": "ตัวชี้วัด ติดตามมาตรการผู้ป่วยวัณโรค แยกตามกลุ่มเสี่ยง Risk Score (สรุป การมารับบริการ)",
 
   };
 
@@ -183,7 +184,7 @@ export default function AdminOfDiseaseControl() {
                               <Clock size={12} /> Last Modified
                             </p>
                             <p className="text-2xl mt-1 font-black text-slate-800 leading-none">
-                              {activeTableInfo.modified_date || '-'}
+                              {activeTableInfo.modified_at || '-'}
                             </p>
                           </div>
                         </div>
@@ -259,7 +260,6 @@ export default function AdminOfDiseaseControl() {
           tableName={getDisplayLabel(activeTableInfo)}
           columns={activeTableInfo?.columns || []} // ส่งโครงสร้าง column แบบ dynamic ไปให้ Modal
           department={userSession.department}
-          
           onUpload={TableConfig[selectedTable]} // ส่ง Function ที่ตรงกับ ID ไปให้
         />
       )}

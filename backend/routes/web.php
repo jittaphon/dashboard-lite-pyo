@@ -41,14 +41,13 @@ $router->group([
 
     
 $router->get('getlist-tb-disease-control', 'TableController@getTableListOfDiseaseControl');
-
 // API สำหรับดึงข้อมูลจากตาราง tb_screening_results
 $router->get('get-screening-results', 'TableController@getScreeningResults');
-
 // API สำหรับบันทึก/อัปเดตข้อมูล (Upsert) จาก Excel หรือ Form
 $router->post('save-screening-results', 'TableController@saveScreeningResults');
-
 $router->post('save-risk-score', 'TableController@saveRiskScore');
+$router->post('save-risk-score-walkin-screen', 'TableController@saveRiskScoreWalkinScreen');
+
 
     });
 });

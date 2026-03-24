@@ -40,7 +40,7 @@ export default function ModelPage() {
           {/* รูปภาพหลัก (เอา Hover Scale ออกเพื่อให้ดูมั่นคง) */}
           <div className="relative rounded-[24px] overflow-hidden">
             <img
-              src={`${import.meta.env.VITE_API_DOMAIN}/datahub/kpi-pyo-hub/public/images/planner.jpg`}
+              src={`${import.meta.env.VITE_API_DOMAIN}/kpi-pyo-hub/public/images/planner.jpg`}
               alt="Strategic Plan"
               className="
                 w-full h-full

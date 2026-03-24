@@ -70,7 +70,7 @@ export default function AdminButton({ project = "kpi-pyo-hub" }) {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: project,
-      redirect_uri: `${import.meta.env.VITE_BASE_DOMAIN}/datahub/kpi-pyo-hub/public/authentication/callback`,
+      redirect_uri: `${import.meta.env.VITE_BASE_DOMAIN}/kpi-pyo-hub/public/authentication/callback`,
       state,
       code_challenge: codeChallenge,
       code_challenge_method: "S256"
@@ -88,7 +88,7 @@ export default function AdminButton({ project = "kpi-pyo-hub" }) {
     
     setIsLoggedIn(false);
     setRemaining(0);
-    window.location.href = `${import.meta.env.VITE_BASE_DOMAIN}/datahub/kpi-pyo-hub/public/`;
+    window.location.href = `${import.meta.env.VITE_BASE_DOMAIN}/kpi-pyo-hub/public/`;
   };
 
   // --- 🌟 จุดที่เพิ่มใหม่: ฟังก์ชันจัดการ Navigation ตาม Role ---

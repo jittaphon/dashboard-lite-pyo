@@ -48,7 +48,7 @@ export const routes = createBrowserRouter([
   },
 ], {
   // 3. สำคัญมาก: ใส่ basename ให้ตรงกับโฟลเดอร์ /datahub/ บน Server
-  basename: "/datahub/kpi-pyo-hub/public"
+  basename: "/kpi-pyo-hub/public"
 });
 
 export default routes;

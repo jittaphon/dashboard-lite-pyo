@@ -35,7 +35,7 @@ export default function PhayaoMap() {
   const [geoData, setGeoData] = useState(null);
 
   useEffect(() => {
-    fetch("/datahub/kpi-pyo-hub/public/districts.geojson")
+    fetch("/kpi-pyo-hub/public/districts.geojson")
       .then(res => res.json())
       .then(data => {
         const phayao = {
