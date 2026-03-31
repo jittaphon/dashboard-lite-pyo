@@ -22,7 +22,8 @@ import StatCard from "../components/MaterialDisplay/StatCard";
 import DynamicChart from "../components/MaterialDisplay/DynamicChart";
 import DynamicTable from "../components/MaterialDisplay/DynamicTable";
 import DynamicHeatmapChart from "../components/MaterialDisplay/DynamicHeatmapChart";
-
+import DynamicStackChart from "../components/MaterialDisplay/DynamicStackChart";
+import DynamicChartNotPecentage from "../components/MaterialDisplay/DynamicChartNotPecentage";  
 const GridLayout = WidthProvider(RGL);
 
 // 🔍 Icon Mapper: เลือกไอคอนอัตโนมัติตามชื่อ Label
@@ -51,6 +52,7 @@ export default function TopicDetailPage() {
       setIsLoading(true);
       try {
         const response = await API.departmentAPI.getReportByUUID(topicKey, year);
+        
         setApiResponse(response.data);
       } catch (err) { console.error(err); } 
       finally { setIsLoading(false); }
@@ -118,7 +120,8 @@ export default function TopicDetailPage() {
           >
             {reportConfig?.widgets?.map((widget) => {
               if (typeof widget.transform !== 'function') return null;
-              const transformedData = widget.transform(filteredData);
+              const transformedData = widget.transform(filteredData, apiResponse?.summary_data);
+              
 
               // 🚀 1. แยก Render เฉพาะ Card (ไม่มีกรอบครอบ)
              if (widget.type === 'card') {
@@ -149,9 +152,11 @@ export default function TopicDetailPage() {
                     <span className="text-lg font-black text-slate-700 uppercase tracking-tight">{widget.label}</span>
                   </div>
                   <div className="flex-1 relative p-6 overflow-hidden">
-                    {widget.type.includes('bar') && <DynamicChart data={transformedData} type={widget.type} />}
+                    {widget.type === 'bar' && <DynamicChart data={transformedData} type={widget.type} />}
                     {widget.type === 'heatmap' && <DynamicHeatmapChart data={transformedData} title={widget.label} />}
                     {widget.type === 'table' && <DynamicTable data={transformedData} />}
+                    {widget.type === 'stacked-bar' && <DynamicStackChart data={transformedData} type={widget.type}  />}
+                    {widget.type === 'bar-not-percentage' && <DynamicChartNotPecentage data={transformedData} type={widget.type}  />  }
                   </div>
                 </div>
               );
@@ -172,4 +177,4 @@ export default function TopicDetailPage() {
       `}</style>
     </div>
   );
-}
+} 

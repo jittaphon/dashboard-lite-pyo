@@ -233,22 +233,87 @@ export const reportStrategies = {
 
 "TB_RISK_SCORE": {
   layout: [
-{ i: 'card-total', x: 0, y: 0, w: 3, h: 3 },
+    { i: 'bar-walkin-vs-screening', x: 0, y: 0, w: 6, h: 9 }, // เริ่มที่ซ้ายสุด (x:0) กว้าง 6
+  { i: 'bar-risk-stacked', x: 6, y: 0, w: 6, h: 9 }       
   ],
   widgets: [
-    // --- Card: ผู้ป่วยทั้งหมด ---
-    {
-      id: 'card-total',
-      type: 'card',
-      label: 'ผู้ป่วยขึ้นทะเบียนสะสม',
-      transform: (data) => {
-
-        console.log("Transforming data for card-total:", data); // Debug log  
  
 
+    // --- 📊 กราฟใหม่: เปรียบเทียบช่องทางรับผู้ป่วย (รวมทั้งจังหวัด) ---
+   {
+  id: 'bar-walkin-vs-screening',
+  type: 'bar-not-percentage', 
+  label: 'จำนวนผู้ป่วยขึ้นทะเบียนทั้งหมด (All Form)',
+  transform: (data, summaryData) => {
+    const summary = summaryData || [];
+    
+    let totalWalkIn = 0;
+    let totalScreening = 0;
+
+    summary.forEach(item => {
+      totalWalkIn += Number(item.walk_in_count || 0);
+      totalScreening += Number(item.screening_count || 0);
+    });
+
+    // 🌟 แก้ตรงนี้: ส่ง Object ที่มี Key ตรงกับที่ DynamicCountChart ดักไว้ (walk_in_count, screening_count)
+    return [
+      { 
+        // label จะถูกดึงไปเป็นแกน X อัตโนมัติ (เพราะเป็น String ตัวเดียวใน Object)
+        type: 'ภาพรวมทั้งจังหวัด', 
+        walk_in_count: totalWalkIn, 
+        screening_count: totalScreening 
       }
-    },
-   
+    ];
+  }
+},
+
+    // --- กราฟเดิมของคุณ: สัดส่วนการเสียชีวิตแยกตามระดับความเสี่ยง ---
+    {
+      id: 'bar-risk-stacked',
+      type: 'stacked-bar',
+      label: 'สัดส่วนการเสียชีวิตแยกตามระดับความเสี่ยง',
+      transform: (data) => {
+        const summary = {
+          High: { alive: 0, died: 0 },
+          Intermediate: { alive: 0, died: 0 },
+          Low: { alive: 0, died: 0 }
+        };
+
+        data.forEach(item => {
+          const rawRisk = String(item.risk_level || "").toLowerCase();
+          let risk = "Low";
+          if (rawRisk.includes("high")) risk = "High";
+          else if (rawRisk.includes("inter")) risk = "Intermediate";
+
+          const rawResult = String(item.treatment_result || "").toLowerCase().trim();
+          const isDead = rawResult === "died" || rawResult === "เสียชีวิต";
+
+          if (isDead) {
+            summary[risk].died++;
+          } else {
+            summary[risk].alive++;
+          }
+        });
+
+        return [
+          {
+            risk: "High Risk",
+            "ผู้ป่วย (มีชีวิต)": summary.High.alive,
+            "ผู้เสียชีวิต": summary.High.died
+          },
+          {
+            risk: "Intermediate Risk",
+            "ผู้ป่วย (มีชีวิต)": summary.Intermediate.alive,
+            "ผู้เสียชีวิต": summary.Intermediate.died
+          },
+          {
+            risk: "Low Risk",
+            "ผู้ป่วย (มีชีวิต)": summary.Low.alive,
+            "ผู้เสียชีวิต": summary.Low.died
+          }
+        ];
+      }
+    }
   ]
 }
 };

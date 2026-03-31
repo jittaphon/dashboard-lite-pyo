@@ -198,28 +198,27 @@ public function saveKpi(Request $request)
 public function getTopicDetail($uuid, $year)
 {
     try {
-        // STEP 1: หา Config จาก DB หลัก (db_kpi_hub)
+        // 1. หา Config จาก DB หลัก
         $kpi = DB::table('kpis')->where('uuid', $uuid)->first();
 
         if (!$kpi) {
             return response()->json(['status' => 'error', 'message' => 'ไม่พบรายงาน'], 404);
         }
 
-        // STEP 2: เตรียมชื่อ Database กลุ่มงาน
         $targetDb = env('DB_DISEASE_CONTROL_DATABASE', 'db_disease_control');
         $tableName = $kpi->target_table; 
 
         if (!$tableName) {
-            return response()->json(['status' => 'error', 'message' => 'รายงานนี้ไม่ได้ระบุชื่อตารางข้อมูลดิบ'], 422);
+            return response()->json(['status' => 'error', 'message' => 'ไม่ได้ระบุชื่อตาราง'], 422);
         }
 
-        // STEP 3: กวาดข้อมูลจาก DB กลุ่มงาน
+        // 2. ดึงข้อมูลตารางหลัก (Raw Data)
         $fullPath = $targetDb . '.' . $tableName;
         $results = DB::table($fullPath)
                     ->where('byear', $year) 
                     ->get();
 
-        // STEP 4: Format ข้อมูล
+        // 3. Format ข้อมูลหลัก (ใส่ปี พ.ศ. ให้ update_at)
         $formattedData = $results->map(function ($item) {
             $row = (array)$item;
             if (isset($row['update_at'])) {
@@ -230,32 +229,41 @@ public function getTopicDetail($uuid, $year)
             return $row;
         });
 
-        // STEP 5: แก้ไขตรงนี้เพื่อดึง chart_type จาก DB
-        // ใช้ explode เปลี่ยนจาก string "bar,table,donut" ให้เป็น array ['bar', 'table', 'donut']
-        $supportedCharts = $kpi->chart_type 
-            ? explode(',', $kpi->chart_type) 
-            : ['bar', 'table', 'donut']; // fallback ถ้าใน DB เป็นค่าว่าง
+        // --- ส่วนที่ปรับปรุง: เคสพิเศษสำหรับตาราง Risk ---
+        $summaryData = []; // Default เป็น array ว่าง
+        
+        if ($tableName === 'tb_patient_risk_records') {
+            $summaryTable = $targetDb . '.tb_patient_risk_records_summary';
+            
+            // ดึงข้อมูลจากตาราง Summary แยกออกมาอีกชุด
+            $summaryResults = DB::table($summaryTable)
+                                ->where('byear', $year)
+                                ->get();
+            
+            $summaryData = $summaryResults->toArray();
+        }
+        // ------------------------------------------
 
-        $visualizations = [
-            'supported_charts' => $supportedCharts,
-            'chart_config' => [
-                // ในเมื่อไม่ได้เพิ่ม col ใน DB ก็ส่งชื่อ Field กลางๆ ไปก่อน 
-                // หรือส่ง null ไปให้ React ไปตัดสินใจเองจากชื่อ Key ใน JSON
-                'label_field' => null, 
-                'value_fields' => []
-            ]
-        ];
-
-        return response()->json([
+        // 4. เตรียมชุดข้อมูลส่งกลับ
+        $response = [
             'status' => 'success',
             'config' => [
                 'title' => $kpi->name,
-                'code' => $kpi->code,
-                'unit' => $kpi->unit ?? 'ร้อยละ'
+                'code'  => $kpi->code,
+                'unit'  => $kpi->unit ?? 'ราย'
             ],
-            'visualizations' => $visualizations,
-            'data' => $formattedData
-        ], 200, [], JSON_UNESCAPED_UNICODE);
+            'visualizations' => [
+                'supported_charts' => $kpi->chart_type ? explode(',', $kpi->chart_type) : ['bar', 'table'],
+            ],
+            'data' => $formattedData, // ข้อมูลดิบ (tb_patient_risk_records)
+        ];
+
+        // ถ้าเป็นเคสพิเศษ ให้แนบ summary_data แยกไปอีก Key หนึ่งเลย
+        if ($tableName === 'tb_patient_risk_records') {
+            $response['summary_data'] = $summaryData; // ข้อมูลสรุป (tb_patient_risk_records_summary)
+        }
+
+        return response()->json($response, 200, [], JSON_UNESCAPED_UNICODE);
 
     } catch (\Throwable $e) {
         return response()->json([
@@ -264,7 +272,6 @@ public function getTopicDetail($uuid, $year)
         ], 500);
     } 
 }
-
     /**
      * Sync ข้อมูลจาก NCD Dashboard (คง Logic เดิมของคุณ แต่ครอบ Throwable)
      */
