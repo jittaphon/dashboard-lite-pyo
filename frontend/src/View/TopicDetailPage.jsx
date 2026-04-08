@@ -24,6 +24,8 @@ import DynamicTable from "../components/MaterialDisplay/DynamicTable";
 import DynamicHeatmapChart from "../components/MaterialDisplay/DynamicHeatmapChart";
 import DynamicStackChart from "../components/MaterialDisplay/DynamicStackChart";
 import DynamicChartNotPecentage from "../components/MaterialDisplay/DynamicChartNotPecentage";  
+import DynamicTableV2 from "../components/MaterialDisplay/DynamicTableV2";
+import DynamicDonutChart from "../components/MaterialDisplay/DynamicDonutChart";
 const GridLayout = WidthProvider(RGL);
 
 // 🔍 Icon Mapper: เลือกไอคอนอัตโนมัติตามชื่อ Label
@@ -52,6 +54,7 @@ export default function TopicDetailPage() {
       setIsLoading(true);
       try {
         const response = await API.departmentAPI.getReportByUUID(topicKey, year);
+        console.log("API Response:", response.data); // Debug log
         
         setApiResponse(response.data);
       } catch (err) { console.error(err); } 
@@ -157,6 +160,9 @@ export default function TopicDetailPage() {
                     {widget.type === 'table' && <DynamicTable data={transformedData} />}
                     {widget.type === 'stacked-bar' && <DynamicStackChart data={transformedData} type={widget.type}  />}
                     {widget.type === 'bar-not-percentage' && <DynamicChartNotPecentage data={transformedData} type={widget.type}  />  }
+                    {widget.type === 'table-v2' && <DynamicTableV2 data={transformedData} />   }
+                    {widget.type === 'pie' && (  <DynamicDonutChart data={transformedData} title={widget.label} type={widget.type} props={widget.props} />
+)}
                   </div>
                 </div>
               );

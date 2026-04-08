@@ -1,81 +1,97 @@
-// components/DynamicDonutChart.jsx
 import React, { useMemo } from 'react';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-  Title,
-} from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, Title } from 'chart.js';
+import { Pie, Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, Title);
 
-export default function DynamicDonutChart({ data, title }) {
+export default function DynamicChart({
+  data = [],
+  title = '',
+  type = 'pie',
+  props = {} // { customColors?, colorMap? }
+}) {
+
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return null;
 
-    // หา Key ที่เป็นข้อความ เพื่อนำมาเป็น Labels (เช่น ampur, risk_group)
-    const labelKey = Object.keys(data[0]).find(
-      (key) => typeof data[0][key] === 'string' && key !== 'update_at' && key !== 'update_at_th'
-    ) || Object.keys(data[0])[0];
+    const labels = data.map(item => item.label);
+    const values = data.map(item => item.value);
 
-    // หา Key ที่เป็นตัวเลขค่าแรกเพื่อนำมาแสดงสัดส่วนใน Donut Chart
-    const numericKey = Object.keys(data[0]).find(
-      (key) => typeof data[0][key] === 'number' && key !== 'id' && key !== 'byear'
-    );
+    let backgroundColors = [];
 
-    if (!numericKey) return null;
-
-    const labels = data.map((item) => item[labelKey] || 'N/A');
-    const values = data.map((item) => item[numericKey] || 0);
-
-    // สร้างชุดสี
-    const backgroundColors = values.map((_, index) => {
-      const hue = (index * (360 / values.length)) % 360;
-      return `hsla(${hue}, 70%, 50%, 0.7)`;
-    });
-
-    const borderColors = values.map((_, index) => {
-      const hue = (index * (360 / values.length)) % 360;
-      return `hsla(${hue}, 70%, 50%, 1)`;
-    });
+    // ✅ Priority 1: ใช้ colorMap (แนะนำ)
+    if (props.colorMap) {
+      backgroundColors = labels.map(label =>
+        props.colorMap[label] || '#cccccc'
+      );
+    }
+    // ✅ Priority 2: ใช้ customColors (array)
+    else if (props.customColors) {
+      backgroundColors = props.customColors;
+    }
+    // ✅ Fallback: random color
+    else {
+      backgroundColors = values.map((_, i) =>
+        `hsla(${(i * 60) % 360}, 65%, 50%, 0.8)`
+      );
+    }
 
     return {
       labels,
       datasets: [
         {
-          label: numericKey,
           data: values,
           backgroundColor: backgroundColors,
-          borderColor: borderColors,
-          borderWidth: 1,
+          borderColor: '#ffffff',
+          borderWidth: 2,
+          hoverOffset: 20
         },
       ],
     };
-  }, [data]);
+  }, [data, props]);
 
   const options = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'right' },
+      legend: {
+        position: 'right',
+        labels: {
+          font: { family: 'Sarabun, sans-serif', size: 13 },
+          usePointStyle: true,
+          padding: 15
+        }
+      },
       title: {
         display: !!title,
-        text: title || 'สัดส่วนข้อมูล',
+        text: title,
+        font: { family: 'Sarabun, sans-serif', size: 16, weight: 'bold' }
       },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const percent = ((ctx.raw / total) * 100).toFixed(1);
+            return ` ${ctx.label}: ${ctx.raw} ราย (${percent}%)`;
+          }
+        }
+      }
     },
   };
 
+  const ChartComponent = type === 'doughnut' ? Doughnut : Pie;
+
   if (!chartData) {
-    return <div className="flex items-center justify-center h-full text-slate-400">ไม่สามารถสร้างกราฟได้ (ข้อมูลไม่ครบถ้วน)</div>;
+    return (
+      <div className="p-10 text-center text-gray-400">
+        ไม่มีข้อมูล
+      </div>
+    );
   }
 
   return (
-    <div className="w-full h-full p-4 flex items-center justify-center">
-      <div className="w-full h-[90%]">
-        <Doughnut options={options} data={chartData} />
-      </div>
+    <div className="w-full h-full p-2">
+      <ChartComponent options={options} data={chartData} />
     </div>
   );
 }

@@ -259,7 +259,7 @@ export const reportStrategies = {
     return [
       { 
         // label จะถูกดึงไปเป็นแกน X อัตโนมัติ (เพราะเป็น String ตัวเดียวใน Object)
-        type: 'ภาพรวมทั้งจังหวัด', 
+        type: 'ภาพรวม', 
         walk_in_count: totalWalkIn, 
         screening_count: totalScreening 
       }
@@ -315,7 +315,182 @@ export const reportStrategies = {
       }
     }
   ]
+},
+
+"TB_PA": {
+  layout: [
+      { i: 'tb-pa-table', x: 4, y: 0, w: 8, h: 12 },
+      { i: 'tb-pa-pie', x: 0, y: 0, w: 4, h: 12 }
+
+  ],
+
+  widgets: [
+       {
+  id: 'tb-pa-table',
+  type: 'table-v2',
+  label: 'รายงาน รักษาวัณโรค PA (ราย รพ / อำเภอ)',
+  transform: (data) => {
+    // 🔥 STEP 1: filter (Logic เดิม)
+    const filtered = data.filter(r =>
+      r.regis_type === 'New' &&
+      r.classify === 'ในปอด (P)' &&
+      r.start_date >= '20250901' &&
+      r.start_date <= '20251231' &&
+      r.rx_result !== 'Change diagnosis'
+    );
+
+    // 🔥 STEP 2: dedupe ต่อ patient (Logic เดิม)
+    const patientMap = {};
+    filtered.forEach(r => {
+      const id = r.PATIENT_ID;
+      if (!patientMap[id] || r.rx_date > patientMap[id].rx_date) {
+        patientMap[id] = r;
+      }
+    });
+
+    const uniqueRows = Object.values(patientMap);
+    const map = {};
+
+    // 🔥 STEP 3: group รายอำเภอ
+    uniqueRows.forEach(r => {
+      const d = r.AMPUR_NAME;
+      if (!map[d]) {
+        map[d] = {
+          district: d,
+          death: 0,
+          ltfu: 0,
+          on_treatment: 0,
+          rr_mdr: 0,
+          transfer_out: 0,
+          success: 0,
+          total_cases: 0,
+          net_cases: 0
+        };
+      }
+
+      const item = map[d];
+      item.total_cases++;
+
+      if (r.rx_result === 'Died') item.death++;
+      if (r.rx_result === 'Lost to follow-up') item.ltfu++;
+      if (r.rx_result === 'On treatment') item.on_treatment++;
+      if (r.rx_result === 'RR/MDR ก่อนเดือนที่ 5') item.rr_mdr++;
+      if (r.rx_result === 'Transferred out') item.transfer_out++;
+      if (['Completed', 'Cured'].includes(r.rx_result)) item.success++;
+    });
+
+    // แปลง Map เป็น Array พร้อมคำนวณ Rate รายอำเภอ
+    const rows = Object.values(map).map(i => {
+      i.net_cases = i.total_cases - i.rr_mdr;
+      i.death_rate = i.net_cases ? +(i.death * 100 / i.net_cases).toFixed(2) : 0;
+      i.ltfu_rate = i.net_cases ? +(i.ltfu * 100 / i.net_cases).toFixed(2) : 0;
+      i.success_rate = i.net_cases ? +(i.success * 100 / i.net_cases).toFixed(2) : 0;
+      return i;
+    });
+
+    // 🔥 STEP 4: คำนวณแถว "รวม" (Grand Total)
+    const total = rows.reduce((acc, curr) => {
+      acc.death += curr.death;
+      acc.ltfu += curr.ltfu;
+      acc.on_treatment += curr.on_treatment;
+      acc.rr_mdr += curr.rr_mdr;
+      acc.transfer_out += curr.transfer_out;
+      acc.success += curr.success;
+      acc.total_cases += curr.total_cases;
+      acc.net_cases += curr.net_cases;
+      return acc;
+    }, {
+      district: 'รวม', // ป้ายชื่อแถวรวม
+      death: 0,
+      ltfu: 0,
+      on_treatment: 0,
+      rr_mdr: 0,
+      transfer_out: 0,
+      success: 0,
+      total_cases: 0,
+      net_cases: 0
+    });
+
+    // คำนวณ Rate สำหรับแถวรวม
+    total.death_rate = total.net_cases ? +(total.death * 100 / total.net_cases).toFixed(2) : 0;
+    total.ltfu_rate = total.net_cases ? +(total.ltfu * 100 / total.net_cases).toFixed(2) : 0;
+    total.success_rate = total.net_cases ? +(total.success * 100 / total.net_cases).toFixed(2) : 0;
+
+    // คืนค่า array ที่รวมแถวสรุปไว้ท้ายสุด
+    return [...rows, total];
+  }
+},
+   {
+  id: 'tb-pa-pie',
+  type: 'pie',
+  label: 'สัดส่วนผลการรักษาทั้งจังหวัดพะเยา',
+ props: {
+  colorMap: {
+    "กำลังรักษา": "#92D050",
+    "เสียชีวิต": "#C0504D",
+    "ขาดยา": "#4BACC6",
+    "โอนออก": "#365988",
+    "RR/MDR ก่อนเดือนที่ 5": "#772020",
+    "สำเร็จ": "#8064A2"
+  }
+},
+  transform: (data) => {
+    const filtered = data.filter(r =>
+      r.regis_type === 'New' &&
+      r.classify === 'ในปอด (P)' &&
+      r.start_date >= '20250901' &&
+      r.start_date <= '20251231' &&
+      r.rx_result !== 'Change diagnosis'
+    );
+
+    const patientMap = {};
+    filtered.forEach(r => {
+      const id = r.PATIENT_ID;
+      if (!patientMap[id] || r.rx_date > patientMap[id].rx_date) {
+        patientMap[id] = r;
+      }
+    });
+
+    const uniqueRows = Object.values(patientMap);
+
+    const summary = {
+      "กำลังรักษา": 0,
+      "เสียชีวิต": 0,
+      "ขาดยา": 0,
+      "โอนออก": 0,
+      "RR/MDR ก่อนเดือนที่ 5": 0,
+      "สำเร็จ": 0
+    };
+
+    uniqueRows.forEach(r => {
+      if (r.rx_result === 'On treatment') summary["กำลังรักษา"]++;
+      else if (r.rx_result === 'Died') summary["เสียชีวิต"]++;
+      else if (r.rx_result === 'Lost to follow-up') summary["ขาดยา"]++;
+      else if (r.rx_result === 'Transferred out') summary["โอนออก"]++;
+      else if (r.rx_result === 'RR/MDR ก่อนเดือนที่ 5') summary["RR/MDR ก่อนเดือนที่ 5"]++;
+      else if (['Completed', 'Cured'].includes(r.rx_result)) summary["สำเร็จ"]++;
+    });
+
+    // ✅ FIX ORDER กันเพี้ยน
+    const ORDER = [
+      "กำลังรักษา",
+      "เสียชีวิต",
+      "ขาดยา",
+      "โอนออก",
+      "RR/MDR ก่อนเดือนที่ 5",
+      "สำเร็จ"
+    ];
+
+    return ORDER.map(key => ({
+      label: key,
+      value: summary[key] || 0
+    }));
+  }
 }
+ 
+  ]
+}
+
 };
 
 export const getReportConfig = (code) => reportStrategies[code] || reportStrategies["TB_SCREENING_RESULTS"];

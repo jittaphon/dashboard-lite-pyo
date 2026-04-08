@@ -195,7 +195,8 @@ public function saveKpi(Request $request)
         }
     }
 
-public function getTopicDetail($uuid, $year)
+
+    public function getTopicDetail($uuid, $year)
 {
     try {
         // 1. หา Config จาก DB หลัก
