@@ -353,7 +353,9 @@ export const reportStrategies = {
 
     // 🔥 STEP 3: group รายอำเภอ
     uniqueRows.forEach(r => {
-      const d = r.AMPUR_NAME;
+      const d = r.AMPUR_NAME
+  ? (r.AMPUR_NAME.startsWith('รพ.') ? r.AMPUR_NAME : `รพ.${r.AMPUR_NAME}`)
+  : '-';
       if (!map[d]) {
         map[d] = {
           district: d,
@@ -410,6 +412,8 @@ export const reportStrategies = {
       total_cases: 0,
       net_cases: 0
     });
+
+
 
     // คำนวณ Rate สำหรับแถวรวม
     total.death_rate = total.net_cases ? +(total.death * 100 / total.net_cases).toFixed(2) : 0;
@@ -490,6 +494,103 @@ export const reportStrategies = {
  
   ]
 }
+,
+
+"TB_TREATMENT_COVERAGE": {
+  layout: [
+      { i: 'tb-pa-table', x: 0, y: 0, w: 12, h: 12 },
+      { i: 'tb-pa-chart', x: 0, y: 0, w: 12, h: 12 }
+
+  ],
+
+  widgets: [
+{
+  id: 'tb-pa-table',
+  type: 'table-v2',
+  label: 'ร้อยละความครอบคลุมการรักษาผู้ป่วยวัณโรครายใหม่และกลับเป็นซ้ำ  TB Treatment Coverage',
+  transform: (data) => {
+    // 1. กำหนดเป้าหมายรายอำเภอ (TCR 100%)
+    const TARGET_MAP = {
+      'เชียงม่วน': 26,
+      'ดอกคำใต้': 94,
+      'จุน': 69,
+      'เชียงคำ': 106,
+      'เมืองพะเยา': 168,
+      'ปง': 71,
+      'ภูซาง': 44,
+      'ภูกามยาว': 29,
+      'แม่ใจ': 44
+    };
+
+    const PHAYAO_SET = new Set(Object.keys(TARGET_MAP));
+    
+    // 2. Initialize ค่าเริ่มต้น
+    const stats = {};
+    for (const district in TARGET_MAP) {
+      stats[district] = 0;
+    }
+
+    // 3. ประมวลผลนับจำนวนผู้ป่วย (Pt.)
+    for (const r of data) {
+      const regis = r.regis_type?.trim();
+      const rx = r.rx_result?.trim();
+
+      if (!['New', 'Relapse'].includes(regis)) continue;
+      if (rx === 'Change diagnosis') continue;
+
+      const pampur = r.PAMPUR_NAME?.trim();
+      const ampur = r.AMPUR_NAME?.trim();
+
+      // Logic: ถ้าที่อยู่ (PAMPUR) อยู่นอกพะเยา ให้นับเข้าอำเภอที่มารักษา (AMPUR)
+      const area = PHAYAO_SET.has(pampur) ? pampur : ampur;
+
+      if (stats.hasOwnProperty(area)) {
+        stats[area] += 1;
+      }
+    }
+
+    // 4. คำนวณค่าต่างๆ และเพิ่ม Column "คงเหลือ" (remaining)
+    let totalTarget = 0;
+    let totalPt = 0;
+
+    const output = Object.keys(TARGET_MAP).map(area => {
+      const target = TARGET_MAP[area];
+      const pt = stats[area];
+      const remaining = target - pt; // คำนวณส่วนต่าง
+      const percent = target > 0 ? (pt / target) * 100 : 0;
+
+      totalTarget += target;
+      totalPt += pt;
+
+      return {
+        area: area,
+        target: target,
+        pt: pt,
+        remaining: remaining > 0 ? remaining : 0, // ถ้าเกินเป้าให้แสดงเป็น 0
+        achievement: percent.toFixed(2)
+      };
+    });
+
+    // 5. แถวสรุปผลรวม (Total)
+    const totalRemaining = totalTarget - totalPt;
+    const totalPercent = totalTarget > 0 ? (totalPt / totalTarget) * 100 : 0;
+
+    output.push({
+      area: 'รวม',
+      target: totalTarget,
+      pt: totalPt,
+      remaining: totalRemaining > 0 ? totalRemaining : 0,
+      achievement: totalPercent.toFixed(2)
+    });
+
+    return output;
+  }
+},
+
+  ]
+}
+
+
 
 };
 

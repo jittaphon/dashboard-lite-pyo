@@ -54,8 +54,7 @@ export default function TopicDetailPage() {
       setIsLoading(true);
       try {
         const response = await API.departmentAPI.getReportByUUID(topicKey, year);
-        console.log("API Response:", response.data); // Debug log
-        
+  
         setApiResponse(response.data);
       } catch (err) { console.error(err); } 
       finally { setIsLoading(false); }
